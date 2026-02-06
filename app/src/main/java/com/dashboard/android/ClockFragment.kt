@@ -238,19 +238,73 @@ class ClockFragment : Fragment() {
         }
     }
 
+    private var currentController: MediaController? = null
+    
+    private val mediaCallback = object : MediaController.Callback() {
+        override fun onPlaybackStateChanged(state: PlaybackState?) {
+            updateMediaInfo(currentController)
+        }
+
+        override fun onMetadataChanged(metadata: android.media.MediaMetadata?) {
+            updateMediaInfo(currentController)
+        }
+    }
+
+    private val sessionListener =  android.media.session.MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
+        // Update to the new primary controller if available
+        val controller = controllers?.firstOrNull()
+        if (currentController != controller) {
+            currentController?.unregisterCallback(mediaCallback)
+            currentController = controller
+            currentController?.registerCallback(mediaCallback)
+            updateMediaInfo(currentController)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         handler.post(clockRunnable)
-        updateMediaInfo(getMediaController())
+        
+        // Setup media listeners
+        val manager = requireContext().getSystemService(Context.MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
+        try {
+            // Need a component name for the listener, using the service we created or just context
+            val componentName = android.content.ComponentName(requireContext(), NotificationService::class.java)
+            manager.addOnActiveSessionsChangedListener(sessionListener, componentName)
+            
+            // Set initial controller
+            val controllers = manager.getActiveSessions(componentName)
+            val controller = controllers.firstOrNull()
+            
+            if (currentController != controller) {
+                currentController?.unregisterCallback(mediaCallback)
+                currentController = controller
+                currentController?.registerCallback(mediaCallback)
+            }
+            updateMediaInfo(currentController)
+        } catch (e: SecurityException) {
+            // Permission might not be granted yet
+            updateMediaInfo(null)
+        }
     }
 
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(clockRunnable)
+        
+        // Cleanup media listeners
+        val manager = requireContext().getSystemService(Context.MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
+        try {
+            manager.removeOnActiveSessionsChangedListener(sessionListener)
+            currentController?.unregisterCallback(mediaCallback)
+        } catch (e: Exception) {
+            // Ignore
+        }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        currentController = null
         _binding = null
     }
 }
