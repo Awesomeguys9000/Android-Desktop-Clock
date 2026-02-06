@@ -53,6 +53,7 @@ class ClockFragment : Fragment() {
         setupClockDisplay()
         setupSettingsPanel()
         setupMediaControls()
+        setupSourceCycling()
     }
 
     private fun loadPreferences() {
@@ -250,14 +251,59 @@ class ClockFragment : Fragment() {
         }
     }
 
+    private var availableControllers = listOf<MediaController>()
+
     private val sessionListener =  android.media.session.MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
-        // Update to the new primary controller if available
-        val controller = controllers?.firstOrNull()
-        if (currentController != controller) {
+        availableControllers = controllers ?: emptyList()
+        // If current controller is gone or null, switch to first available
+        if (currentController == null || !availableControllers.contains(currentController)) {
+            val next = availableControllers.firstOrNull()
+            switchController(next)
+        }
+    }
+    
+    private fun switchController(controller: MediaController?) {
+         if (currentController != controller) {
             currentController?.unregisterCallback(mediaCallback)
             currentController = controller
             currentController?.registerCallback(mediaCallback)
             updateMediaInfo(currentController)
+        }
+    }
+    
+    // Cycle to next available source
+    private fun cycleMediaSource() {
+        if (availableControllers.size <= 1) return
+        
+        val currentIndex = availableControllers.indexOf(currentController)
+        val nextIndex = (currentIndex + 1) % availableControllers.size
+        val nextController = availableControllers[nextIndex]
+        
+        switchController(nextController)
+        
+        // Brief feedback
+        val appName = nextController.packageName // Simple feedback, could be improved
+        android.widget.Toast.makeText(context, "Source: ${appName.substringAfterLast('.')}", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun setupSourceCycling() {
+        val detector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: android.view.MotionEvent?, e2: android.view.MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                // Swipe left or right
+                if (Math.abs(velocityX) > Math.abs(velocityY)) {
+                   cycleMediaSource()
+                   return true
+                }
+                return false
+            }
+            override fun onDown(e: android.view.MotionEvent): Boolean = true
+        })
+        
+        binding.nowPlayingContainer.setOnTouchListener { _, event ->
+            detector.onTouchEvent(event)
+            // Also allow clicks to pass through if needed, but here we consume it
+            true 
         }
     }
 

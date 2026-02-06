@@ -100,6 +100,13 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                             .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
                             .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
                             .build())
+                        // Show notification
+                        val meta = controller.metadata
+                        showMediaNotification(
+                            meta?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "Web App",
+                            meta?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: "",
+                            true
+                        )
                     }
                     override fun onPause() {
                         activeWebAppId?.let { webViewCache[it]?.pause() }
@@ -107,6 +114,13 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                             .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
                             .setState(android.media.session.PlaybackState.STATE_PAUSED, 0, 1f)
                             .build())
+                        // Show notification
+                        val meta = controller.metadata
+                        showMediaNotification(
+                            meta?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "Web App",
+                            meta?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: "",
+                            false
+                        )
                     }
                     override fun onSkipToNext() {
                         activeWebAppId?.let { webViewCache[it]?.skipNext() }
@@ -243,6 +257,38 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         }
     }
     
+    private fun showMediaNotification(title: String, artist: String, isPlaying: Boolean) {
+        val channelId = "media_channel"
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            if (notificationManager.getNotificationChannel(channelId) == null) {
+                val channel = android.app.NotificationChannel(channelId, "Media Playback", android.app.NotificationManager.IMPORTANCE_LOW)
+                notificationManager.createNotificationChannel(channel)
+            }
+        }
+        
+        val pauseAction = android.app.Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_pause), "Pause",
+            android.app.PendingIntent.getBroadcast(this, 1, Intent("ACTION_PAUSE"), android.app.PendingIntent.FLAG_IMMUTABLE)
+        ).build()
+        
+        val playAction = android.app.Notification.Action.Builder(
+            android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_play), "Play",
+            android.app.PendingIntent.getBroadcast(this, 2, Intent("ACTION_PLAY"), android.app.PendingIntent.FLAG_IMMUTABLE)
+        ).build()
+
+        val notification = android.app.Notification.Builder(this, channelId)
+            .setStyle(android.app.Notification.MediaStyle().setMediaSession(mediaSession?.sessionToken))
+            .setSmallIcon(R.drawable.ic_music)
+            .setContentTitle(title)
+            .setContentText(artist)
+            .addAction(if (isPlaying) pauseAction else playAction)
+            .build()
+            
+        notificationManager.notify(101, notification)
+    }
+
     override fun onResume() {
         super.onResume()
         hideSystemUI()
