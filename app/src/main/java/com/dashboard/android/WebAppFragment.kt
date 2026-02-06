@@ -103,32 +103,63 @@ class WebAppFragment : Fragment() {
             }
         }
         
+        // Javascript Interface
+        webView.addJavascriptInterface(WebAppInterface(), "Android")
+        
         // Critical for Apple Music/Spotify
         android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                // Inject JavaScript to hide banners
+                // Inject JavaScript to hide banners AND poll for metadata
+                val metadataJs = """
+                    (function() {
+                        setInterval(function() {
+                            try {
+                                var title = "";
+                                var artist = "";
+                                var isPlaying = false;
+                                
+                                // Apple Music
+                                if (window.MusicKit) {
+                                    var mk = window.MusicKit.getInstance();
+                                    if (mk && mk.nowPlayingItem) {
+                                        title = mk.nowPlayingItem.title;
+                                        artist = mk.nowPlayingItem.artistName;
+                                        isPlaying = mk.isPlaying;
+                                    }
+                                }
+                                
+                                // Send to Android
+                                if (title) {
+                                    Android.updateMediaMetadata(title, artist, isPlaying);
+                                }
+                            } catch(e) {}
+                        }, 1000);
+                    })();
+                """
+                view?.evaluateJavascript(metadataJs, null)
+                
                 appConfig.jsInjection?.let { js ->
                     view?.evaluateJavascript(js, null)
                 }
             }
             
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                // Keep navigation within WebView
                 return false
             }
         }
-        
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
-                request?.grant(request.resources)
+    }
+    
+    // JS Interface
+    inner class WebAppInterface {
+        @android.webkit.JavascriptInterface
+        fun updateMediaMetadata(title: String, artist: String, isPlaying: Boolean) {
+            activity?.runOnUiThread {
+                (activity as? MainActivity)?.updateSessionMetadata(title, artist, isPlaying)
             }
         }
-        
-        // Load URL
-        webView.loadUrl(appConfig.url)
     }
 
     init {
