@@ -27,20 +27,4 @@ class NotificationService : NotificationListenerService() {
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         // Notification removed - UI will poll for updates
     }
-
-    fun getActiveNotifications(): Array<StatusBarNotification> {
-        return try {
-            activeNotifications ?: emptyArray()
-        } catch (e: Exception) {
-            emptyArray()
-        }
-    }
-
-    fun cancelNotification(key: String) {
-        try {
-            cancelNotification(key)
-        } catch (e: Exception) {
-            // Ignore if can't cancel
-        }
-    }
 }
