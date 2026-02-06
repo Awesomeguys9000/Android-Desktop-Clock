@@ -147,6 +147,16 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         binding.viewPager.visibility = View.GONE
     }
     
+    fun restartWebApp(appConfig: AppConfig) {
+        val fragment = webViewCache[appConfig.id]
+        if (fragment != null) {
+            supportFragmentManager.beginTransaction().remove(fragment).commit()
+            webViewCache.remove(appConfig.id)
+            android.widget.Toast.makeText(this, "Restarting ${appConfig.name}...", android.widget.Toast.LENGTH_SHORT).show()
+        }
+        showWebApp(appConfig)
+    }
+    
     fun returnToClock() {
         val transaction = supportFragmentManager.beginTransaction()
             .setCustomAnimations(
