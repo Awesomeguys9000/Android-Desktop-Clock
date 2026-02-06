@@ -118,28 +118,50 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     fun getActiveMediaController(): MediaController? = activeMediaController
     
     fun showWebApp(appConfig: AppConfig) {
-        // Get or create cached WebAppFragment
-        val fragment = webViewCache.getOrPut(appConfig.id) {
-            WebAppFragment.newInstance(appConfig)
-        }
-        
-        supportFragmentManager.beginTransaction()
+        val transaction = supportFragmentManager.beginTransaction()
             .setCustomAnimations(
-                android.R.anim.fade_in,
-                android.R.anim.fade_out,
                 android.R.anim.fade_in,
                 android.R.anim.fade_out
             )
-            .add(R.id.webAppContainer, fragment, appConfig.id)
-            .addToBackStack(appConfig.id)
-            .commit()
+
+        // Hide all existing web fragments
+        webViewCache.values.forEach { fragment ->
+            if (fragment.isAdded && !fragment.isHidden) {
+                transaction.hide(fragment)
+            }
+        }
+
+        // Get or create cached WebAppFragment
+        var fragment = webViewCache[appConfig.id]
+        if (fragment == null) {
+            fragment = WebAppFragment.newInstance(appConfig)
+            webViewCache[appConfig.id] = fragment
+            transaction.add(R.id.webAppContainer, fragment, appConfig.id)
+        } else {
+            transaction.show(fragment)
+        }
+        
+        transaction.commit()
         
         binding.webAppContainer.visibility = View.VISIBLE
         binding.viewPager.visibility = View.GONE
     }
     
     fun returnToClock() {
-        supportFragmentManager.popBackStack()
+        val transaction = supportFragmentManager.beginTransaction()
+            .setCustomAnimations(
+                android.R.anim.fade_in,
+                android.R.anim.fade_out
+            )
+            
+        // Hide all web fragments
+        webViewCache.values.forEach { fragment ->
+            if (fragment.isAdded && !fragment.isHidden) {
+                transaction.hide(fragment)
+            }
+        }
+        transaction.commit()
+
         binding.webAppContainer.visibility = View.GONE
         binding.viewPager.visibility = View.VISIBLE
         viewPager.setCurrentItem(1, true) // Go to clock
