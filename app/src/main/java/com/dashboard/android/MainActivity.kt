@@ -109,6 +109,8 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         val session = android.media.session.MediaSession(this, appConfig.name).apply {
             setCallback(object : android.media.session.MediaSession.Callback() {
                  override fun onPlay() {
+                    // Request focus again on play
+                    requestAudioFocus()
                     webViewCache[appConfig.id]?.play()
                 }
                 override fun onPause() {
@@ -121,13 +123,30 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                     webViewCache[appConfig.id]?.skipPrevious()
                 }
             })
-            isActive = true
             setFlags(android.media.session.MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or 
                      android.media.session.MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
         }
         
         appMediaSessions[appConfig.id] = session
         return session
+    }
+
+    private fun requestAudioFocus() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        val focusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .setOnAudioFocusChangeListener { focusChange ->
+                // Optional: Handle focus loss (e.g. pause webview)
+                // For now, we trust the WebView's internal handling, 
+                // but this request ensures OUR MediaSession is favored for buttons.
+            }
+            .build()
+        audioManager.requestAudioFocus(focusRequest)
     }
 
     fun updateSessionMetadata(appId: String, title: String, artist: String, isPlaying: Boolean) {
@@ -139,9 +158,16 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
             .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, artist)
             .build())
             
-        // If playing, ensure active
+        // If playing, ensure THIS session is active and others are NOT
+        // This resolves the hardware button ambiguity
         if (isPlaying) {
-            session.isActive = true
+             requestAudioFocus()
+             session.isActive = true
+             
+             // Deactivate others
+             appMediaSessions.values.forEach { 
+                 if (it != session) it.isActive = false 
+             }
         }
 
         session.setPlaybackState(android.media.session.PlaybackState.Builder()
