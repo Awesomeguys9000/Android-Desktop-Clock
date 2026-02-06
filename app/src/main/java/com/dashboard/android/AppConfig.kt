@@ -26,14 +26,19 @@ data class AppConfig(
                         '[class*="store-badge"]',
                         '.upsell-banner',
                         '[class*="native-app"]',
-                        '#web-navigation-container' // Sometimes contains 'Get on Play Store' in mobile view
+                        '#web-navigation-container',
+                        '[aria-label*="Get it on"]',
+                        '[aria-label*="Open in"]',
+                        '.banner-container',
+                        'div[role="banner"]',
+                        '.experience-upsell-container' 
                     ];
                     selectors.forEach(function(sel) {
                         try {
                             var elements = document.querySelectorAll(sel);
                             elements.forEach(function(el) {
-                                el.style.display = 'none';
-                                el.style.visibility = 'hidden'; // Double tap
+                                // Aggressive removal
+                                el.remove(); 
                             });
                         } catch(e) {}
                     });
