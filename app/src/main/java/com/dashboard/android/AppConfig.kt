@@ -25,19 +25,22 @@ data class AppConfig(
                         '[class*="app-banner"]',
                         '[class*="store-badge"]',
                         '.upsell-banner',
-                        '[class*="native-app"]'
+                        '[class*="native-app"]',
+                        '#web-navigation-container' // Sometimes contains 'Get on Play Store' in mobile view
                     ];
                     selectors.forEach(function(sel) {
-                        var elements = document.querySelectorAll(sel);
-                        elements.forEach(function(el) {
-                            el.style.display = 'none';
-                        });
+                        try {
+                            var elements = document.querySelectorAll(sel);
+                            elements.forEach(function(el) {
+                                el.style.display = 'none';
+                                el.style.visibility = 'hidden'; // Double tap
+                            });
+                        } catch(e) {}
                     });
                 }
-                // Run immediately and observe for dynamic content
+                // Run repeatedly for SPA navigation
                 hideElements();
-                var observer = new MutationObserver(hideElements);
-                observer.observe(document.body, { childList: true, subtree: true });
+                setInterval(hideElements, 1000); // Check every second
             })();
         """
         
@@ -48,14 +51,16 @@ data class AppConfig(
                 name = "Apple Music",
                 url = "https://music.apple.com",
                 iconResId = R.drawable.ic_music,
-                jsInjection = APPLE_MUSIC_JS
+                jsInjection = APPLE_MUSIC_JS,
+                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ),
             AppConfig(
                 id = "apple_podcasts",
                 name = "Apple Podcasts",
                 url = "https://podcasts.apple.com",
                 iconResId = R.drawable.ic_podcast,
-                jsInjection = APPLE_MUSIC_JS
+                jsInjection = APPLE_MUSIC_JS,
+                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ),
             AppConfig(
                 id = "google_calendar",
