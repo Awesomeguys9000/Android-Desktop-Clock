@@ -108,16 +108,16 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
             mediaSession = android.media.session.MediaSession(this, "DashboardWebSession").apply {
                 setCallback(object : android.media.session.MediaSession.Callback() {
                     override fun onPlay() {
-                        activeWebAppId?.let { webViewCache[it]?.play() }
+                        lastActiveMediaAppId?.let { webViewCache[it]?.play() }
                     }
                     override fun onPause() {
-                        activeWebAppId?.let { webViewCache[it]?.pause() }
+                        lastActiveMediaAppId?.let { webViewCache[it]?.pause() }
                     }
                     override fun onSkipToNext() {
-                        activeWebAppId?.let { webViewCache[it]?.skipNext() }
+                        lastActiveMediaAppId?.let { webViewCache[it]?.skipNext() }
                     }
                     override fun onSkipToPrevious() {
-                        activeWebAppId?.let { webViewCache[it]?.skipPrevious() }
+                        lastActiveMediaAppId?.let { webViewCache[it]?.skipPrevious() }
                     }
                 })
                 isActive = true
@@ -153,6 +153,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     }
     
     private var activeWebAppId: String? = null
+    private var lastActiveMediaAppId: String? = null
 
     override fun onActiveSessionsChanged(controllers: MutableList<MediaController>?) {
         // If our session is active and user is in a web app, don't overwrite with system controllers
@@ -172,17 +173,22 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     fun showWebApp(appConfig: AppConfig) {
         activeWebAppId = appConfig.id
         
-        // Update Session Metadata
-        mediaSession?.setMetadata(android.media.MediaMetadata.Builder()
-            .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, appConfig.name)
-            .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, "Web App")
-            .build())
+        // Only update media tracking if this is actually a media app
+        if (appConfig.isMediaApp) {
+            lastActiveMediaAppId = appConfig.id
             
-        // Set state to Playing so controls appear (optimistic)
-        mediaSession?.setPlaybackState(android.media.session.PlaybackState.Builder()
-                            .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
-                            .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
-                            .build())
+            // Update Session Metadata
+            mediaSession?.setMetadata(android.media.MediaMetadata.Builder()
+                .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, appConfig.name)
+                .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, "Web App")
+                .build())
+                
+            // Set state to Playing so controls appear (optimistic)
+            mediaSession?.setPlaybackState(android.media.session.PlaybackState.Builder()
+                                .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+                                .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
+                                .build())
+        }
 
         val transaction = supportFragmentManager.beginTransaction()
             .setCustomAnimations(
