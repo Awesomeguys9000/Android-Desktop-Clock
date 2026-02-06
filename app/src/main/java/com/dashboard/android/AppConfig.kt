@@ -57,7 +57,7 @@ data class AppConfig(
                 url = "https://music.apple.com",
                 iconResId = R.drawable.ic_music,
                 jsInjection = APPLE_MUSIC_JS,
-                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                customUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ),
             AppConfig(
                 id = "apple_podcasts",
@@ -65,7 +65,7 @@ data class AppConfig(
                 url = "https://podcasts.apple.com",
                 iconResId = R.drawable.ic_podcast,
                 jsInjection = APPLE_MUSIC_JS,
-                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                customUserAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ),
             AppConfig(
                 id = "google_calendar",
