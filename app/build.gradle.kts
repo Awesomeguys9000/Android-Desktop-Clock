@@ -65,4 +65,5 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.cardview:cardview:1.0.0")
     implementation("androidx.webkit:webkit:1.9.0")
+    implementation("androidx.media:media:1.7.0") // Required for MediaButtonReceiver
 }

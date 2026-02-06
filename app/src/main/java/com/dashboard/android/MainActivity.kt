@@ -206,7 +206,13 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         }
 
         session.setPlaybackState(android.media.session.PlaybackState.Builder()
-            .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+            .setActions(
+                android.media.session.PlaybackState.ACTION_PLAY or
+                android.media.session.PlaybackState.ACTION_PAUSE or
+                android.media.session.PlaybackState.ACTION_PLAY_PAUSE or 
+                android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or 
+                android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS
+            )
             .setState(if (isPlaying) android.media.session.PlaybackState.STATE_PLAYING else android.media.session.PlaybackState.STATE_PAUSED, 0, 1f)
             .build())
             
@@ -271,7 +277,13 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                 
             // Set state to Playing so controls appear (optimistic)
             session.setPlaybackState(android.media.session.PlaybackState.Builder()
-                                .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+                                .setActions(
+                                    android.media.session.PlaybackState.ACTION_PLAY or
+                                    android.media.session.PlaybackState.ACTION_PAUSE or
+                                    android.media.session.PlaybackState.ACTION_PLAY_PAUSE or 
+                                    android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or 
+                                    android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS
+                                )
                                 .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
                                 .build())
         }
