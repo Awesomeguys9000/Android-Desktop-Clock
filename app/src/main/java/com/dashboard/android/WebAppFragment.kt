@@ -156,6 +156,9 @@ class WebAppFragment : Fragment() {
                 request?.grant(request.resources)
             }
         }
+        
+        // Critical: Actually load the page!
+        webView.loadUrl(appConfig.url)
     }
     
     // JS Interface
