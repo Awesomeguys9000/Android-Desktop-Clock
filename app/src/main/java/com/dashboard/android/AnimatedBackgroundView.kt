@@ -33,7 +33,7 @@ class AnimatedBackgroundView @JvmOverloads constructor(
             invalidate()
         }
 
-    var solidColor: Int = Color.parseColor("#0D0D0D")
+    var customSolidColor: Int = Color.parseColor("#0D0D0D")
         set(value) {
             field = value
             invalidate()
@@ -127,7 +127,7 @@ class AnimatedBackgroundView @JvmOverloads constructor(
     }
 
     private fun drawSolid(canvas: Canvas) {
-        canvas.drawColor(solidColor)
+        canvas.drawColor(customSolidColor)
     }
 
     private fun drawStaticGradient(canvas: Canvas) {
