@@ -191,8 +191,11 @@ class WebAppFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
-        // To enable background audio, we must NOT pause the WebView when the app is backgrounded.
-        // binding.webView.onPause() 
+        // Only pause WebView if the fragment is actually being destroyed or activity paused
+        // NOT when just hidden
+        if (!isHidden) {
+            binding.webView.onPause()
+        }
     }
 
     override fun onDestroyView() {
