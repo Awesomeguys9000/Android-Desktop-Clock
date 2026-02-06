@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Animated Background -->
+    <com.dashboard.android.AnimatedBackgroundView
+        android:id="@+id/animatedBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Clock Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <!-- Main Clock Display -->
+        <TextView
+            android:id="@+id/clockText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="120sp"
+            android:textColor="@color/clock_white"
+            android:fontFamily="sans-serif-light"
+            android:letterSpacing="0.05"
+            tools:text="12:34:56" />
+
+        <TextView
+            android:id="@+id/dateText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="24sp"
+            android:textColor="#80FFFFFF"
+            android:layout_marginTop="8dp"
+            tools:text="Thursday, February 6" />
+
+    </LinearLayout>
+
+    <!-- Now Playing Bar (bottom) -->
+    <LinearLayout
+        android:id="@+id/nowPlayingContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp"
+        android:background="@color/media_bar_background"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <!-- Track Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginEnd="16dp">
+
+            <TextView
+                android:id="@+id/trackTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textColor="@color/text_primary"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="Song Title" />
+
+            <TextView
+                android:id="@+id/trackArtist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="Artist Name" />
+
+        </LinearLayout>
+
+        <!-- Media Controls -->
+        <ImageButton
+            android:id="@+id/btnSkipPrevious"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_skip_previous"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Previous"
+            app:tint="@color/media_button" />
+
+        <ImageButton
+            android:id="@+id/btnPlayPause"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@drawable/ic_play"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Play/Pause"
+            app:tint="@color/media_button"
+            android:layout_marginHorizontal="8dp" />
+
+        <ImageButton
+            android:id="@+id/btnSkipNext"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_skip_next"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Next"
+            app:tint="@color/media_button" />
+
+    </LinearLayout>
+
+    <!-- Settings Panel (overlay) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/settingsPanel"
+        android:layout_width="400dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        app:cardBackgroundColor="@color/card_background"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="8dp"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/settings"
+                android:textSize="20sp"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold" />
+
+            <!-- 24-hour toggle -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="16dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="24-hour format"
+                    android:textColor="@color/text_primary" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/toggle24Hour"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+            </LinearLayout>
+
+            <!-- Show seconds toggle -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Show seconds"
+                    android:textColor="@color/text_primary" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/toggleSeconds"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+            </LinearLayout>
+
+            <!-- Clock Color -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Clock Color"
+                android:textColor="@color/text_primary"
+                android:layout_marginTop="16dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <View
+                    android:id="@+id/colorWhite"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/color_circle_white"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:id="@+id/colorBlue"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/color_circle_blue"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:id="@+id/colorPurple"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/color_circle_purple"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:id="@+id/colorPink"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/color_circle_pink"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:id="@+id/colorGreen"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/color_circle_green"
+                    android:layout_marginEnd="8dp" />
+
+                <View
+                    android:id="@+id/colorOrange"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/color_circle_orange" />
+
+            </LinearLayout>
+
+            <!-- Background Style -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Background Style"
+                android:textColor="@color/text_primary"
+                android:layout_marginTop="16dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/bgSolid"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Solid"
+                    android:textSize="12sp"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_marginEnd="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/bgGradient"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Gradient"
+                    android:textSize="12sp"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_marginEnd="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/bgAnimated"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Animated"
+                    android:textSize="12sp"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_marginEnd="8dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/bgParticles"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="Particles"
+                    android:textSize="12sp"
+                    style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            </LinearLayout>
+
+            <!-- Close Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/closeSettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Close"
+                android:layout_marginTop="24dp" />
+
+        </LinearLayout>
+
+    </androidx.cardview.widget.CardView>
+
+</FrameLayout>

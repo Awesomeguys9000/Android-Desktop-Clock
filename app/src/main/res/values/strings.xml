@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dashboard</string>
+    <string name="notification_access_title">Notification Access Required</string>
+    <string name="notification_access_message">To display notifications on this dashboard, please enable notification access for Dashboard in your device settings.</string>
+    <string name="grant_access">Grant Access</string>
+    <string name="later">Later</string>
+    <string name="back_to_clock">Back to Clock</string>
+    <string name="settings">Settings</string>
+    <string name="no_notifications">No notifications</string>
+    <string name="not_playing">Not playing</string>
+</resources>
