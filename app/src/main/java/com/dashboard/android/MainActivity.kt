@@ -46,6 +46,41 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         setupViewPager()
         checkNotificationAccess()
         setupMediaListeners()
+        
+        // Register receiver for notification actions
+        val filter = android.content.IntentFilter().apply {
+            addAction("ACTION_PLAY")
+            addAction("ACTION_PAUSE")
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            registerReceiver(notificationActionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(notificationActionReceiver, filter)
+        }
+    }
+    
+    // Receiver for notification actions
+    private val notificationActionReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "ACTION_PLAY" -> {
+                    activeWebAppId?.let { id ->
+                        val appConfig = AppConfig.defaultApps.find { it.id == id }
+                        if (appConfig?.isMediaApp == true) {
+                            webViewCache[id]?.play()
+                        }
+                    }
+                }
+                "ACTION_PAUSE" -> {
+                    activeWebAppId?.let { id ->
+                        val appConfig = AppConfig.defaultApps.find { it.id == id }
+                        if (appConfig?.isMediaApp == true) {
+                            webViewCache[id]?.pause()
+                        }
+                    }
+                }
+            }
+        }
     }
     
     private fun hideSystemUI() {
@@ -350,6 +385,11 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     override fun onDestroy() {
         super.onDestroy()
         mediaSessionManager?.removeOnActiveSessionsChangedListener(this)
+        try {
+            unregisterReceiver(notificationActionReceiver)
+        } catch (e: IllegalArgumentException) {
+            // Ignore if not registered
+        }
     }
     
     // ViewPager adapter for Notifications, Clock, Launcher
