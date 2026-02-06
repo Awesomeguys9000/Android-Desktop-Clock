@@ -88,6 +88,20 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
             .show()
     }
     
+    fun updateSessionMetadata(title: String, artist: String, isPlaying: Boolean) {
+        mediaSession?.setMetadata(android.media.MediaMetadata.Builder()
+            .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, title)
+            .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, artist)
+            .build())
+            
+        mediaSession?.setPlaybackState(android.media.session.PlaybackState.Builder()
+            .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+            .setState(if (isPlaying) android.media.session.PlaybackState.STATE_PLAYING else android.media.session.PlaybackState.STATE_PAUSED, 0, 1f)
+            .build())
+            
+        showMediaNotification(title, artist, isPlaying)
+    }
+
     private fun setupMediaSession() {
         try {
             // Create our own session for WebView control
@@ -95,32 +109,9 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                 setCallback(object : android.media.session.MediaSession.Callback() {
                     override fun onPlay() {
                         activeWebAppId?.let { webViewCache[it]?.play() }
-                        // Update state to playing
-                         setPlaybackState(android.media.session.PlaybackState.Builder()
-                            .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
-                            .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
-                            .build())
-                        // Show notification
-                        val meta = controller.metadata
-                        showMediaNotification(
-                            meta?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "Web App",
-                            meta?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: "",
-                            true
-                        )
                     }
                     override fun onPause() {
                         activeWebAppId?.let { webViewCache[it]?.pause() }
-                         setPlaybackState(android.media.session.PlaybackState.Builder()
-                            .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
-                            .setState(android.media.session.PlaybackState.STATE_PAUSED, 0, 1f)
-                            .build())
-                        // Show notification
-                        val meta = controller.metadata
-                        showMediaNotification(
-                            meta?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "Web App",
-                            meta?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: "",
-                            false
-                        )
                     }
                     override fun onSkipToNext() {
                         activeWebAppId?.let { webViewCache[it]?.skipNext() }
