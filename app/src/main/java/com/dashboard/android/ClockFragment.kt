@@ -286,25 +286,17 @@ class ClockFragment : Fragment() {
         android.widget.Toast.makeText(context, "Source: ${appName.substringAfterLast('.')}", android.widget.Toast.LENGTH_SHORT).show()
     }
     
-    @android.annotation.SuppressLint("ClickableViewAccessibility")
     private fun setupSourceCycling() {
-        val detector = android.view.GestureDetector(context, object : android.view.GestureDetector.SimpleOnGestureListener() {
-            override fun onFling(e1: android.view.MotionEvent?, e2: android.view.MotionEvent, velocityX: Float, velocityY: Float): Boolean {
-                // Swipe left or right
-                if (Math.abs(velocityX) > Math.abs(velocityY)) {
-                   cycleMediaSource()
-                   return true
-                }
-                return false
-            }
-            override fun onDown(e: android.view.MotionEvent): Boolean = true
-        })
-        
-        binding.nowPlayingContainer.setOnTouchListener { _, event ->
-            detector.onTouchEvent(event)
-            // Also allow clicks to pass through if needed, but here we consume it
-            true 
+        // Tap on Title or Artist to cycle source
+        val clickListener = View.OnClickListener {
+            cycleMediaSource()
         }
+        
+        binding.trackTitle.setOnClickListener(clickListener)
+        binding.trackArtist.setOnClickListener(clickListener)
+        
+        // Optional: Make them look clickable or just rely on user knowing
+        // You could also add a long click listener for something else
     }
 
     override fun onResume() {

@@ -150,6 +150,12 @@ class WebAppFragment : Fragment() {
                 return false
             }
         }
+
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
+                request?.grant(request.resources)
+            }
+        }
     }
     
     // JS Interface
