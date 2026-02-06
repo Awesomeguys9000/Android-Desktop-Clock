@@ -159,4 +159,55 @@ class WebAppFragment : Fragment() {
         // Clean up
         _binding = null
     }
+    fun play() {
+        val js = """
+            (function() {
+                var media = document.querySelectorAll('audio, video');
+                if (media.length > 0) { media.forEach(m => m.play()); return; }
+                try { window.MusicKit.getInstance().play(); } catch(e) {}
+            })();
+        """
+        if (::binding.isInitialized && webViewInitialized) {
+            binding.webView.evaluateJavascript(js, null)
+        }
+    }
+
+    fun pause() {
+        val js = """
+            (function() {
+                var media = document.querySelectorAll('audio, video');
+                if (media.length > 0) { media.forEach(m => m.pause()); return; }
+                try { window.MusicKit.getInstance().pause(); } catch(e) {}
+            })();
+        """
+         if (::binding.isInitialized && webViewInitialized) {
+            binding.webView.evaluateJavascript(js, null)
+        }
+    }
+
+    fun skipNext() {
+         val js = """
+            (function() {
+                try { window.MusicKit.getInstance().skipToNextItem(); return; } catch(e) {}
+                var media = document.querySelectorAll('audio, video');
+                if (media.length > 0) { media.forEach(m => m.currentTime += 10); }
+            })();
+        """
+         if (::binding.isInitialized && webViewInitialized) {
+            binding.webView.evaluateJavascript(js, null)
+        }
+    }
+
+    fun skipPrevious() {
+         val js = """
+            (function() {
+                try { window.MusicKit.getInstance().skipToPreviousItem(); return; } catch(e) {}
+                var media = document.querySelectorAll('audio, video');
+                if (media.length > 0) { media.forEach(m => m.currentTime -= 10); }
+            })();
+        """
+         if (::binding.isInitialized && webViewInitialized) {
+            binding.webView.evaluateJavascript(js, null)
+        }
+    }
 }

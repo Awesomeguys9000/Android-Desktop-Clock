@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     private lateinit var viewPager: ViewPager2
     private var mediaSessionManager: MediaSessionManager? = null
     private var activeMediaController: MediaController? = null
+    private var mediaSession: android.media.session.MediaSession? = null
     
     // WebView cache to keep apps running
     private val webViewCache = mutableMapOf<String, WebAppFragment>()
