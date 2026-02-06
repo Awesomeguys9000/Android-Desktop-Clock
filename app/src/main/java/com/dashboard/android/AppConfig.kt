@@ -92,7 +92,7 @@ data class AppConfig(
             AppConfig(
                 id = "outlook",
                 name = "Outlook",
-                url = "https://outlook.live.com",
+                url = "https://outlook.live.com/mail",
                 iconResId = R.drawable.ic_outlook,
                 customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
