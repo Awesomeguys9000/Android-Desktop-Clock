@@ -90,11 +90,11 @@ data class AppConfig(
                 iconResId = R.drawable.ic_keep
             ),
             AppConfig(
-                id = "youtube_music",
-                name = "YouTube Music",
-                url = "https://music.youtube.com",
-                iconResId = R.drawable.ic_youtube_music,
-                isMediaApp = true
+                id = "outlook",
+                name = "Outlook",
+                url = "https://outlook.live.com",
+                iconResId = R.drawable.ic_outlook,
+                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
         )
     }
