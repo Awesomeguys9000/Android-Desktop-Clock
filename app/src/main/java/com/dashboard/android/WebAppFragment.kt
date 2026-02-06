@@ -103,6 +103,9 @@ class WebAppFragment : Fragment() {
             }
         }
         
+        // Critical for Apple Music/Spotify
+        android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)

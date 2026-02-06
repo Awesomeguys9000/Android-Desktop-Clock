@@ -89,6 +89,40 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     
     private fun setupMediaSession() {
         try {
+            // Create our own session for WebView control
+            mediaSession = android.media.session.MediaSession(this, "DashboardWebSession").apply {
+                setCallback(object : android.media.session.MediaSession.Callback() {
+                    override fun onPlay() {
+                        activeWebAppId?.let { webViewCache[it]?.play() }
+                        // Update state to playing
+                         setPlaybackState(android.media.session.PlaybackState.Builder()
+                            .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+                            .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
+                            .build())
+                    }
+                    override fun onPause() {
+                        activeWebAppId?.let { webViewCache[it]?.pause() }
+                         setPlaybackState(android.media.session.PlaybackState.Builder()
+                            .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+                            .setState(android.media.session.PlaybackState.STATE_PAUSED, 0, 1f)
+                            .build())
+                    }
+                    override fun onSkipToNext() {
+                        activeWebAppId?.let { webViewCache[it]?.skipNext() }
+                    }
+                    override fun onSkipToPrevious() {
+                        activeWebAppId?.let { webViewCache[it]?.skipPrevious() }
+                    }
+                })
+                isActive = true
+                
+                // Initial state
+                setPlaybackState(android.media.session.PlaybackState.Builder()
+                    .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+                    .setState(android.media.session.PlaybackState.STATE_NONE, 0, 1f)
+                    .build())
+            }
+
             mediaSessionManager = getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
             val componentName = ComponentName(this, NotificationService::class.java)
             mediaSessionManager?.addOnActiveSessionsChangedListener(this, componentName)
@@ -108,8 +142,16 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         }
     }
     
+    private var activeWebAppId: String? = null
+
     override fun onActiveSessionsChanged(controllers: MutableList<MediaController>?) {
-        activeMediaController = controllers?.firstOrNull()
+        // If our session is active and user is in a web app, don't overwrite with system controllers
+        // unless they are actually playing something else (like Spotify app)
+        val visibleController = controllers?.firstOrNull()
+        
+        // If our internal session is the one being reported, ignore recursive updates or handle gracefully
+        activeMediaController = visibleController
+        
         // Notify ClockFragment about media change
         val clockFragment = supportFragmentManager.findFragmentByTag("f1") as? ClockFragment
         clockFragment?.updateMediaInfo(activeMediaController)
@@ -118,6 +160,20 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     fun getActiveMediaController(): MediaController? = activeMediaController
     
     fun showWebApp(appConfig: AppConfig) {
+        activeWebAppId = appConfig.id
+        
+        // Update Session Metadata
+        mediaSession?.setMetadata(android.media.MediaMetadata.Builder()
+            .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, appConfig.name)
+            .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, "Web App")
+            .build())
+            
+        // Set state to Playing so controls appear (optimistic)
+        mediaSession?.setPlaybackState(android.media.session.PlaybackState.Builder()
+                            .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+                            .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
+                            .build())
+
         val transaction = supportFragmentManager.beginTransaction()
             .setCustomAnimations(
                 android.R.anim.fade_in,
