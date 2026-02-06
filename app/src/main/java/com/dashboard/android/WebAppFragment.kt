@@ -121,7 +121,11 @@ class WebAppFragment : Fragment() {
             }
         }
         
-        webView.webChromeClient = WebChromeClient()
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
+                request?.grant(request.resources)
+            }
+        }
         
         // Load URL
         webView.loadUrl(appConfig.url)
