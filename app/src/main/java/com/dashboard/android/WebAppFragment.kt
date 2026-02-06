@@ -1,0 +1,142 @@
+package com.dashboard.android
+
+import android.annotation.SuppressLint
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.fragment.app.Fragment
+import com.dashboard.android.databinding.FragmentWebappBinding
+
+class WebAppFragment : Fragment() {
+
+    private var _binding: FragmentWebappBinding? = null
+    private val binding get() = _binding!!
+    
+    private lateinit var appConfig: AppConfig
+    private var webViewInitialized = false
+
+    companion object {
+        private const val ARG_APP_ID = "app_id"
+        private const val ARG_APP_NAME = "app_name"
+        private const val ARG_APP_URL = "app_url"
+        private const val ARG_JS_INJECTION = "js_injection"
+        private const val ARG_USER_AGENT = "user_agent"
+
+        fun newInstance(config: AppConfig): WebAppFragment {
+            return WebAppFragment().apply {
+                arguments = Bundle().apply {
+                    putString(ARG_APP_ID, config.id)
+                    putString(ARG_APP_NAME, config.name)
+                    putString(ARG_APP_URL, config.url)
+                    putString(ARG_JS_INJECTION, config.jsInjection)
+                    putString(ARG_USER_AGENT, config.customUserAgent)
+                }
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        arguments?.let {
+            appConfig = AppConfig(
+                id = it.getString(ARG_APP_ID, ""),
+                name = it.getString(ARG_APP_NAME, ""),
+                url = it.getString(ARG_APP_URL, ""),
+                iconResId = R.drawable.ic_music,
+                jsInjection = it.getString(ARG_JS_INJECTION),
+                customUserAgent = it.getString(ARG_USER_AGENT)
+            )
+        }
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentWebappBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        
+        // Back button
+        binding.backButton.setOnClickListener {
+            (activity as? MainActivity)?.returnToClock()
+        }
+        
+        // Setup WebView if not already done
+        if (!webViewInitialized) {
+            setupWebView()
+            webViewInitialized = true
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setupWebView() {
+        val webView = binding.webView
+        
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            cacheMode = WebSettings.LOAD_DEFAULT
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
+            loadWithOverviewMode = true
+            useWideViewPort = true
+            
+            // Custom user agent if specified
+            appConfig.customUserAgent?.let { ua ->
+                userAgentString = ua
+            }
+        }
+        
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                // Inject JavaScript to hide banners
+                appConfig.jsInjection?.let { js ->
+                    view?.evaluateJavascript(js, null)
+                }
+            }
+            
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                // Keep navigation within WebView
+                return false
+            }
+        }
+        
+        webView.webChromeClient = WebChromeClient()
+        
+        // Load URL
+        webView.loadUrl(appConfig.url)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        binding.webView.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        binding.webView.onPause()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Don't destroy WebView to keep audio playing
+        _binding = null
+    }
+}
