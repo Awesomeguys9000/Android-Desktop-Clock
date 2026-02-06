@@ -166,7 +166,7 @@ class WebAppFragment : Fragment() {
         @android.webkit.JavascriptInterface
         fun updateMediaMetadata(title: String, artist: String, isPlaying: Boolean) {
             activity?.runOnUiThread {
-                (activity as? MainActivity)?.updateSessionMetadata(title, artist, isPlaying)
+                (activity as? MainActivity)?.updateSessionMetadata(appConfig.id, title, artist, isPlaying)
             }
         }
     }

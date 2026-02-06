@@ -222,10 +222,15 @@ class ClockFragment : Fragment() {
             val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: ""
             val artist = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: ""
             
+            // Extract app name from package name or tag
+            // Our tag is "App Name" (e.g., Apple Music)
+            val appName = controller.tag ?: controller.packageName.substringAfterLast('.')
+            
             if (title.isNotEmpty() || artist.isNotEmpty()) {
                 binding.nowPlayingContainer.visibility = View.VISIBLE
                 binding.trackTitle.text = title.ifEmpty { getString(R.string.not_playing) }
                 binding.trackArtist.text = artist
+                binding.trackSource.text = appName
                 
                 val isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING
                 binding.btnPlayPause.setImageResource(
@@ -241,6 +246,7 @@ class ClockFragment : Fragment() {
 
     private var currentController: MediaController? = null
     
+    // ... existing callback ...
     private val mediaCallback = object : MediaController.Callback() {
         override fun onPlaybackStateChanged(state: PlaybackState?) {
             updateMediaInfo(currentController)
@@ -255,10 +261,21 @@ class ClockFragment : Fragment() {
 
     private val sessionListener =  android.media.session.MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
         availableControllers = controllers ?: emptyList()
-        // If current controller is gone or null, switch to first available
-        if (currentController == null || !availableControllers.contains(currentController)) {
-            val next = availableControllers.firstOrNull()
-            switchController(next)
+        
+        // Logic: 
+        // 1. If currently displayed source is still valid/alive, keep displaying it (even if paused).
+        // 2. If currently displayed source is DEAD (gone), switch to any available.
+        // 3. (Optional) If a NEW source starts PLAYING, auto-switch to it? (User said: "It should be whatever is playing")
+        
+        val newActive = availableControllers.find { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+        
+        if (newActive != null && newActive != currentController) {
+             // Something else started playing, switch to it
+             switchController(newActive)
+        } else if (currentController == null || !availableControllers.contains(currentController)) {
+            // Our current source died, verify fallback
+             val next = availableControllers.firstOrNull()
+             switchController(next)
         }
     }
     
@@ -280,10 +297,7 @@ class ClockFragment : Fragment() {
         val nextController = availableControllers[nextIndex]
         
         switchController(nextController)
-        
-        // Brief feedback
-        val appName = nextController.packageName // Simple feedback, could be improved
-        android.widget.Toast.makeText(context, "Source: ${appName.substringAfterLast('.')}", android.widget.Toast.LENGTH_SHORT).show()
+        // Toast removed as requested
     }
     
     private fun setupSourceCycling() {

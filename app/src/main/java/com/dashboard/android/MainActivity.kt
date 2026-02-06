@@ -26,7 +26,6 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     private lateinit var viewPager: ViewPager2
     private var mediaSessionManager: MediaSessionManager? = null
     private var activeMediaController: MediaController? = null
-    private var mediaSession: android.media.session.MediaSession? = null
     
     // WebView cache to keep apps running
     private val webViewCache = mutableMapOf<String, WebAppFragment>()
@@ -46,7 +45,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         hideSystemUI()
         setupViewPager()
         checkNotificationAccess()
-        setupMediaSession()
+        setupMediaListeners()
     }
     
     private fun hideSystemUI() {
@@ -88,58 +87,80 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
             .show()
     }
     
-    fun updateSessionMetadata(title: String, artist: String, isPlaying: Boolean) {
-        mediaSession?.setMetadata(android.media.MediaMetadata.Builder()
+    // Multi-session management
+    // Limit to 2 concurrent sessions to avoid memory issues and clutter
+    // Access-ordered LRU map
+    private val appMediaSessions = object : java.util.LinkedHashMap<String, android.media.session.MediaSession>(2, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, android.media.session.MediaSession>?): Boolean {
+             if (size > 2) {
+                 eldest?.value?.release()
+                 return true
+             }
+             return false
+        }
+    }
+
+    // Helper to get or create session for an app
+    private fun getOrCreateMediaSession(appConfig: AppConfig): android.media.session.MediaSession {
+        // Return existing if found
+        appMediaSessions[appConfig.id]?.let { return it }
+        
+        // Create new
+        val session = android.media.session.MediaSession(this, appConfig.name).apply {
+            setCallback(object : android.media.session.MediaSession.Callback() {
+                 override fun onPlay() {
+                    webViewCache[appConfig.id]?.play()
+                }
+                override fun onPause() {
+                    webViewCache[appConfig.id]?.pause()
+                }
+                override fun onSkipToNext() {
+                    webViewCache[appConfig.id]?.skipNext()
+                }
+                override fun onSkipToPrevious() {
+                    webViewCache[appConfig.id]?.skipPrevious()
+                }
+            })
+            isActive = true
+            setFlags(android.media.session.MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or 
+                     android.media.session.MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
+        }
+        
+        appMediaSessions[appConfig.id] = session
+        return session
+    }
+
+    fun updateSessionMetadata(appId: String, title: String, artist: String, isPlaying: Boolean) {
+        val appConfig = AppConfig.defaultApps.find { it.id == appId } ?: return
+        val session = getOrCreateMediaSession(appConfig)
+        
+        session.setMetadata(android.media.MediaMetadata.Builder()
             .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, title)
             .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, artist)
             .build())
             
-        mediaSession?.setPlaybackState(android.media.session.PlaybackState.Builder()
+        // If playing, ensure active
+        if (isPlaying) {
+            session.isActive = true
+        }
+
+        session.setPlaybackState(android.media.session.PlaybackState.Builder()
             .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
             .setState(if (isPlaying) android.media.session.PlaybackState.STATE_PLAYING else android.media.session.PlaybackState.STATE_PAUSED, 0, 1f)
             .build())
             
-        showMediaNotification(title, artist, isPlaying)
-    }
-
-    private fun setupMediaSession() {
-        try {
-            // Create our own session for WebView control
-            mediaSession = android.media.session.MediaSession(this, "DashboardWebSession").apply {
-                setCallback(object : android.media.session.MediaSession.Callback() {
-                    override fun onPlay() {
-                        lastActiveMediaAppId?.let { webViewCache[it]?.play() }
-                    }
-                    override fun onPause() {
-                        lastActiveMediaAppId?.let { webViewCache[it]?.pause() }
-                    }
-                    override fun onSkipToNext() {
-                        lastActiveMediaAppId?.let { webViewCache[it]?.skipNext() }
-                    }
-                    override fun onSkipToPrevious() {
-                        lastActiveMediaAppId?.let { webViewCache[it]?.skipPrevious() }
-                    }
-                })
-                isActive = true
-                
-                // CRITICAL: specific flags to let system know we want hardware button events
-                setFlags(android.media.session.MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or 
-                        android.media.session.MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
-                
-                // Initial state
-                setPlaybackState(android.media.session.PlaybackState.Builder()
-                    .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
-                    .setState(android.media.session.PlaybackState.STATE_NONE, 0, 1f)
-                    .build())
-            }
-
-            mediaSessionManager = getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
-            val componentName = ComponentName(this, NotificationService::class.java)
-            mediaSessionManager?.addOnActiveSessionsChangedListener(this, componentName)
-            updateActiveMediaController()
-        } catch (e: SecurityException) {
-            // Notification access not granted yet
+        // Only show notification if playing or recently interacted
+        if (isPlaying) {
+             showMediaNotification(title, artist, isPlaying, session.sessionToken)
         }
+    }
+    
+    private fun setupMediaListeners() {
+        // Initial setup for listener
+        mediaSessionManager = getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
+        val componentName = ComponentName(this, NotificationService::class.java)
+        mediaSessionManager?.addOnActiveSessionsChangedListener(this, componentName)
+        updateActiveMediaController()
     }
     
     private fun updateActiveMediaController() {
@@ -177,14 +198,18 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         if (appConfig.isMediaApp) {
             lastActiveMediaAppId = appConfig.id
             
+            // Activate specific session
+            val session = getOrCreateMediaSession(appConfig)
+            session.isActive = true
+            
             // Update Session Metadata
-            mediaSession?.setMetadata(android.media.MediaMetadata.Builder()
+            session.setMetadata(android.media.MediaMetadata.Builder()
                 .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, appConfig.name)
                 .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, "Web App")
                 .build())
                 
             // Set state to Playing so controls appear (optimistic)
-            mediaSession?.setPlaybackState(android.media.session.PlaybackState.Builder()
+            session.setPlaybackState(android.media.session.PlaybackState.Builder()
                                 .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
                                 .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
                                 .build())
@@ -258,7 +283,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         }
     }
     
-    private fun showMediaNotification(title: String, artist: String, isPlaying: Boolean) {
+    private fun showMediaNotification(title: String, artist: String, isPlaying: Boolean, sessionToken: android.media.session.MediaSession.Token?) {
         val channelId = "media_channel"
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         
@@ -280,7 +305,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         ).build()
 
         val notification = android.app.Notification.Builder(this, channelId)
-            .setStyle(android.app.Notification.MediaStyle().setMediaSession(mediaSession?.sessionToken))
+            .setStyle(android.app.Notification.MediaStyle().setMediaSession(sessionToken))
             .setSmallIcon(R.drawable.ic_music)
             .setContentTitle(title)
             .setContentText(artist)
