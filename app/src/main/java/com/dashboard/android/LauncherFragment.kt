@@ -28,9 +28,18 @@ class LauncherFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         
         binding.appsGrid.layoutManager = GridLayoutManager(context, 3)
-        binding.appsGrid.adapter = AppAdapter(AppConfig.defaultApps) { appConfig ->
-            (activity as? MainActivity)?.showWebApp(appConfig)
-        }
+        // Pass both click (open) and long click (restart) listeners
+        binding.appsGrid.adapter = AppAdapter(
+            AppConfig.defaultApps,
+            onAppClick = { appConfig ->
+                (activity as? MainActivity)?.showWebApp(appConfig)
+            },
+            onAppLongClick = { appConfig ->
+                // Long press to restart
+                (activity as? MainActivity)?.restartWebApp(appConfig)
+                true
+            }
+        )
     }
 
     override fun onDestroyView() {
@@ -41,7 +50,8 @@ class LauncherFragment : Fragment() {
     // RecyclerView Adapter
     private inner class AppAdapter(
         private val apps: List<AppConfig>,
-        private val onAppClick: (AppConfig) -> Unit
+        private val onAppClick: (AppConfig) -> Unit,
+        private val onAppLongClick: (AppConfig) -> Boolean
     ) : RecyclerView.Adapter<AppAdapter.AppViewHolder>() {
 
         inner class AppViewHolder(val binding: ItemAppCardBinding) : 
@@ -59,6 +69,7 @@ class LauncherFragment : Fragment() {
             holder.binding.appIcon.setImageResource(app.iconResId)
             holder.binding.appName.text = app.name
             holder.binding.root.setOnClickListener { onAppClick(app) }
+            holder.binding.root.setOnLongClickListener { onAppLongClick(app) }
         }
 
         override fun getItemCount() = apps.size
