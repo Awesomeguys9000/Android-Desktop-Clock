@@ -167,7 +167,7 @@ class WebAppFragment : Fragment() {
                 try { window.MusicKit.getInstance().play(); } catch(e) {}
             })();
         """
-        if (::binding.isInitialized && webViewInitialized) {
+        if (_binding != null && webViewInitialized) {
             binding.webView.evaluateJavascript(js, null)
         }
     }
@@ -180,7 +180,7 @@ class WebAppFragment : Fragment() {
                 try { window.MusicKit.getInstance().pause(); } catch(e) {}
             })();
         """
-         if (::binding.isInitialized && webViewInitialized) {
+         if (_binding != null && webViewInitialized) {
             binding.webView.evaluateJavascript(js, null)
         }
     }
@@ -193,7 +193,7 @@ class WebAppFragment : Fragment() {
                 if (media.length > 0) { media.forEach(m => m.currentTime += 10); }
             })();
         """
-         if (::binding.isInitialized && webViewInitialized) {
+         if (_binding != null && webViewInitialized) {
             binding.webView.evaluateJavascript(js, null)
         }
     }
@@ -206,7 +206,7 @@ class WebAppFragment : Fragment() {
                 if (media.length > 0) { media.forEach(m => m.currentTime -= 10); }
             })();
         """
-         if (::binding.isInitialized && webViewInitialized) {
+         if (_binding != null && webViewInitialized) {
             binding.webView.evaluateJavascript(js, null)
         }
     }
