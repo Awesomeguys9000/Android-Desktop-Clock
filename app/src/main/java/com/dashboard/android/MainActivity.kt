@@ -241,7 +241,8 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                 .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, "Web App")
                 .build())
                 
-            // Set state to Playing so controls appear (optimistic)
+            // Set state to PAUSED initially - let actual playback trigger PLAYING
+            // Setting PLAYING prematurely causes the next play action to toggle to pause
             session.setPlaybackState(android.media.session.PlaybackState.Builder()
                                 .setActions(
                                     android.media.session.PlaybackState.ACTION_PLAY or
@@ -250,7 +251,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                                     android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or 
                                     android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS
                                 )
-                                .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
+                                .setState(android.media.session.PlaybackState.STATE_PAUSED, 0, 1f)
                                 .build())
         }
 
