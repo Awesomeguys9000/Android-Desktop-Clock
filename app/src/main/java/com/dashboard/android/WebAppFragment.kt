@@ -165,9 +165,13 @@ class WebAppFragment : Fragment() {
     inner class WebAppInterface {
         @android.webkit.JavascriptInterface
         fun updateMediaMetadata(title: String, artist: String, isPlaying: Boolean) {
-            activity?.runOnUiThread {
-                (activity as? MainActivity)?.updateSessionMetadata(appConfig.id, title, artist, isPlaying)
-            }
+            // DISABLED: This was creating a custom MediaSession that conflicted with
+            // WebView's internal MediaPlaybackService, causing rapid play-pause cycles.
+            // The WebView handles its own media session natively now.
+            
+            // activity?.runOnUiThread {
+            //     (activity as? MainActivity)?.updateSessionMetadata(appConfig.id, title, artist, isPlaying)
+            // }
         }
     }
 

@@ -231,28 +231,12 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         if (appConfig.isMediaApp) {
             lastActiveMediaAppId = appConfig.id
             
-            // Activate specific session
-            val session = getOrCreateMediaSession(appConfig)
-            session.isActive = true
+            // DISABLED: Custom MediaSession was conflicting with WebView's internal MediaPlaybackService
+            // causing rapid play-pause cycles. Let the WebView handle media natively.
+            // The WebView's MediaPlaybackService will show up in system media controls automatically.
             
-            // Update Session Metadata
-            session.setMetadata(android.media.MediaMetadata.Builder()
-                .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, appConfig.name)
-                .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, "Web App")
-                .build())
-                
-            // Set state to PAUSED initially - let actual playback trigger PLAYING
-            // Setting PLAYING prematurely causes the next play action to toggle to pause
-            session.setPlaybackState(android.media.session.PlaybackState.Builder()
-                                .setActions(
-                                    android.media.session.PlaybackState.ACTION_PLAY or
-                                    android.media.session.PlaybackState.ACTION_PAUSE or
-                                    android.media.session.PlaybackState.ACTION_PLAY_PAUSE or 
-                                    android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or 
-                                    android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS
-                                )
-                                .setState(android.media.session.PlaybackState.STATE_PAUSED, 0, 1f)
-                                .build())
+            // If we need custom metadata/controls later, we can intercept the WebView's session
+            // rather than creating a competing one.
         }
 
         val transaction = supportFragmentManager.beginTransaction()
