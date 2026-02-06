@@ -122,6 +122,10 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                 })
                 isActive = true
                 
+                // CRITICAL: specific flags to let system know we want hardware button events
+                setFlags(android.media.session.MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or 
+                        android.media.session.MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
+                
                 // Initial state
                 setPlaybackState(android.media.session.PlaybackState.Builder()
                     .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
