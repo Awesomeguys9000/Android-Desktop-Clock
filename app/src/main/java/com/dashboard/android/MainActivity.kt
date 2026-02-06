@@ -123,6 +123,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                     webViewCache[appConfig.id]?.skipPrevious()
                 }
             })
+            isActive = true
             setFlags(android.media.session.MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or 
                      android.media.session.MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
         }
