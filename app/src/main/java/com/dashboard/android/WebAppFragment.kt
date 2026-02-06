@@ -124,6 +124,19 @@ class WebAppFragment : Fragment() {
         webView.loadUrl(appConfig.url)
     }
 
+    init {
+        // Ensure hardware acceleration
+    }
+
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (!hidden) {
+            // Wake up WebView when shown again
+            binding.webView.visibility = View.VISIBLE
+            binding.webView.requestLayout()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         binding.webView.onResume()
@@ -131,12 +144,16 @@ class WebAppFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
-        binding.webView.onPause()
+        // Only pause WebView if the fragment is actually being destroyed or activity paused
+        // NOT when just hidden
+        if (!isHidden) {
+            binding.webView.onPause()
+        }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        // Don't destroy WebView to keep audio playing
+        // Clean up
         _binding = null
     }
 }
