@@ -47,6 +47,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         setupViewPager()
         checkNotificationAccess()
         setupMediaSession()
+        requestAudioFocus()
     }
     
     private fun hideSystemUI() {
@@ -102,12 +103,29 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         showMediaNotification(title, artist, isPlaying)
     }
 
+    private fun requestAudioFocus() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        val focusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .setOnAudioFocusChangeListener { focusChange ->
+                // Optional: Handle focus loss (e.g. pause webview)
+            }
+            .build()
+        audioManager.requestAudioFocus(focusRequest)
+    }
+
     private fun setupMediaSession() {
         try {
             // Create our own session for WebView control
             mediaSession = android.media.session.MediaSession(this, "DashboardWebSession").apply {
                 setCallback(object : android.media.session.MediaSession.Callback() {
                     override fun onPlay() {
+                        requestAudioFocus()
                         lastActiveMediaAppId?.let { webViewCache[it]?.play() }
                     }
                     override fun onPause() {
