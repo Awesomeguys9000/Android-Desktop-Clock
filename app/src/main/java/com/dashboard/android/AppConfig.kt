@@ -63,7 +63,7 @@ data class AppConfig(
                 name = "Asana",
                 url = "https://app.asana.com",
                 iconResId = R.drawable.ic_asana,
-                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
             ),
             AppConfig(
                 id = "youtube",
