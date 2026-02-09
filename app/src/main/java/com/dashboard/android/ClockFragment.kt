@@ -53,6 +53,7 @@ class ClockFragment : Fragment() {
         setupClockDisplay()
         setupSettingsPanel()
         setupMediaControls()
+        setupSourceCycling()
     }
 
     private fun loadPreferences() {
@@ -187,7 +188,7 @@ class ClockFragment : Fragment() {
 
     private fun setupMediaControls() {
         binding.btnPlayPause.setOnClickListener {
-            currentController?.let { controller ->
+            getMediaController()?.let { controller ->
                 val state = controller.playbackState?.state
                 if (state == PlaybackState.STATE_PLAYING) {
                     controller.transportControls.pause()
@@ -198,11 +199,11 @@ class ClockFragment : Fragment() {
         }
         
         binding.btnSkipNext.setOnClickListener {
-            currentController?.transportControls?.skipToNext()
+            getMediaController()?.transportControls?.skipToNext()
         }
         
         binding.btnSkipPrevious.setOnClickListener {
-            currentController?.transportControls?.skipToPrevious()
+            getMediaController()?.transportControls?.skipToPrevious()
         }
         
         // Initial media info update
@@ -216,16 +217,6 @@ class ClockFragment : Fragment() {
     fun updateMediaInfo(controller: MediaController?) {
         if (_binding == null) return
         
-        if (currentController != controller) {
-            try {
-                currentController?.unregisterCallback(mediaCallback)
-            } catch (e: Exception) { /* Ignore */ }
-            currentController = controller
-            try {
-                currentController?.registerCallback(mediaCallback)
-            } catch (e: Exception) { /* Ignore */ }
-        }
-
         if (controller != null) {
             val metadata = controller.metadata
             val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: ""
@@ -272,14 +263,78 @@ class ClockFragment : Fragment() {
         }
     }
 
+    private var availableControllers = listOf<MediaController>()
+
+    private val sessionListener =  android.media.session.MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
+        availableControllers = controllers ?: emptyList()
+        // If current controller is gone or null, switch to first available
+        if (currentController == null || !availableControllers.contains(currentController)) {
+            val next = availableControllers.firstOrNull()
+            switchController(next)
+        }
+    }
+    
+    private fun switchController(controller: MediaController?) {
+         if (currentController != controller) {
+            currentController?.unregisterCallback(mediaCallback)
+            currentController = controller
+            currentController?.registerCallback(mediaCallback)
+            updateMediaInfo(currentController)
+        }
+    }
+    
+    // Cycle to next available source
+    private fun cycleMediaSource() {
+        if (availableControllers.size <= 1) return
+        
+        val currentIndex = availableControllers.indexOf(currentController)
+        val nextIndex = (currentIndex + 1) % availableControllers.size
+        val nextController = availableControllers[nextIndex]
+        
+        switchController(nextController)
+        
+        // Brief feedback
+        val appName = nextController.packageName // Simple feedback, could be improved
+        android.widget.Toast.makeText(context, "Source: ${appName.substringAfterLast('.')}", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun setupSourceCycling() {
+        // Tap on Title or Artist to cycle source
+        val clickListener = View.OnClickListener {
+            cycleMediaSource()
+        }
+        
+        binding.trackTitle.setOnClickListener(clickListener)
+        binding.trackArtist.setOnClickListener(clickListener)
+        
+        // Optional: Make them look clickable or just rely on user knowing
+        // You could also add a long click listener for something else
+    }
+
     override fun onResume() {
         super.onResume()
         handler.post(clockRunnable)
         
-        // Sync with activity controller
-        val activityController = (activity as? MainActivity)?.getActiveMediaController()
-        if (currentController != activityController) {
-             updateMediaInfo(activityController)
+        // Setup media listeners
+        val manager = requireContext().getSystemService(Context.MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
+        try {
+            // Need a component name for the listener, using the service we created or just context
+            val componentName = android.content.ComponentName(requireContext(), NotificationService::class.java)
+            manager.addOnActiveSessionsChangedListener(sessionListener, componentName)
+            
+            // Set initial controller
+            val controllers = manager.getActiveSessions(componentName)
+            val controller = controllers.firstOrNull()
+            
+            if (currentController != controller) {
+                currentController?.unregisterCallback(mediaCallback)
+                currentController = controller
+                currentController?.registerCallback(mediaCallback)
+            }
+            updateMediaInfo(currentController)
+        } catch (e: SecurityException) {
+            // Permission might not be granted yet
+            updateMediaInfo(null)
         }
     }
 
@@ -288,7 +343,9 @@ class ClockFragment : Fragment() {
         handler.removeCallbacks(clockRunnable)
         
         // Cleanup media listeners
+        val manager = requireContext().getSystemService(Context.MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
         try {
+            manager.removeOnActiveSessionsChangedListener(sessionListener)
             currentController?.unregisterCallback(mediaCallback)
         } catch (e: Exception) {
             // Ignore
