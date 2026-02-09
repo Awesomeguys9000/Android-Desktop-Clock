@@ -226,6 +226,18 @@ class ClockFragment : Fragment() {
                 binding.nowPlayingContainer.visibility = View.VISIBLE
                 binding.trackTitle.text = title.ifEmpty { getString(R.string.not_playing) }
                 binding.trackArtist.text = artist
+
+                // Update Media Source (App Name)
+                try {
+                    val packageName = controller.packageName
+                    val pm = requireContext().packageManager
+                    val appInfo = pm.getApplicationInfo(packageName, 0)
+                    val appName = pm.getApplicationLabel(appInfo).toString()
+                    binding.mediaSource.text = appName
+                    binding.mediaSource.visibility = View.VISIBLE
+                } catch (e: Exception) {
+                    binding.mediaSource.visibility = View.GONE
+                }
                 
                 val isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING
                 binding.btnPlayPause.setImageResource(
