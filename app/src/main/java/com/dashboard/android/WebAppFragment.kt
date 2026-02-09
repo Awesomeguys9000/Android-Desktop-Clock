@@ -104,7 +104,35 @@ class WebAppFragment : Fragment() {
         }
         
         // Javascript Interface
-        webView.addJavascriptInterface(WebAppInterface(), "Android")
+        // Use WebViewCompat for secure messaging if supported
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            val uri = android.net.Uri.parse(appConfig.url)
+            val origin = "${uri.scheme}://${uri.authority}"
+
+            androidx.webkit.WebViewCompat.addWebMessageListener(
+                webView,
+                "Android",
+                setOf(origin),
+                androidx.webkit.WebViewCompat.WebMessageListener { _, message, _, _, _ ->
+                    try {
+                        val data = org.json.JSONObject(message.data ?: "{}")
+                        val type = data.optString("type")
+
+                        if (type == "updateMediaMetadata") {
+                            val title = data.optString("title")
+                            val artist = data.optString("artist")
+                            val isPlaying = data.optBoolean("isPlaying")
+
+                            activity?.runOnUiThread {
+                                (activity as? MainActivity)?.updateSessionMetadata(title, artist, isPlaying)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // Ignore malformed messages
+                    }
+                }
+            )
+        }
         
         // Critical for Apple Music/Spotify
         android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
@@ -132,8 +160,13 @@ class WebAppFragment : Fragment() {
                                 }
                                 
                                 // Send to Android
-                                if (title) {
-                                    Android.updateMediaMetadata(title, artist, isPlaying);
+                                if (title && window.Android && window.Android.postMessage) {
+                                    window.Android.postMessage(JSON.stringify({
+                                        type: "updateMediaMetadata",
+                                        title: title,
+                                        artist: artist,
+                                        isPlaying: isPlaying
+                                    }));
                                 }
                             } catch(e) {}
                         }, 1000);
@@ -161,16 +194,6 @@ class WebAppFragment : Fragment() {
         webView.loadUrl(appConfig.url)
     }
     
-    // JS Interface
-    inner class WebAppInterface {
-        @android.webkit.JavascriptInterface
-        fun updateMediaMetadata(title: String, artist: String, isPlaying: Boolean) {
-            activity?.runOnUiThread {
-                (activity as? MainActivity)?.updateSessionMetadata(title, artist, isPlaying)
-            }
-        }
-    }
-
     init {
         // Ensure hardware acceleration
     }
