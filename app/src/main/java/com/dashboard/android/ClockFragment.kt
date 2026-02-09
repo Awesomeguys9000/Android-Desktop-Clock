@@ -27,6 +27,8 @@ class ClockFragment : Fragment() {
     private var is24Hour = false
     private var showSeconds = true
     private var clockColor = 0xFFFFFFFF.toInt()
+    private val formatters = mutableMapOf<String, SimpleDateFormat>()
+    private var lastLocale: Locale? = null
     
     private val clockRunnable = object : Runnable {
         override fun run() {
@@ -84,6 +86,12 @@ class ClockFragment : Fragment() {
 
     private fun updateClock() {
         val now = Date()
+        val locale = Locale.getDefault()
+
+        if (locale != lastLocale) {
+            formatters.clear()
+            lastLocale = locale
+        }
         
         // Time format
         val pattern = when {
@@ -92,11 +100,12 @@ class ClockFragment : Fragment() {
             !is24Hour && showSeconds -> "h:mm:ss a"
             else -> "h:mm a"
         }
-        val timeFormat = SimpleDateFormat(pattern, Locale.getDefault())
+        val timeFormat = formatters.getOrPut(pattern) { SimpleDateFormat(pattern, locale) }
         binding.clockText.text = timeFormat.format(now)
         
         // Date format
-        val dateFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
+        val datePattern = "EEEE, MMMM d"
+        val dateFormat = formatters.getOrPut(datePattern) { SimpleDateFormat(datePattern, locale) }
         binding.dateText.text = dateFormat.format(now)
     }
 
