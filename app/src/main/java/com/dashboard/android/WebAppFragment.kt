@@ -18,15 +18,18 @@ class WebAppFragment : Fragment() {
     private var _binding: FragmentWebappBinding? = null
     private val binding get() = _binding!!
     
-    private lateinit var appConfig: AppConfig
+    internal lateinit var appConfig: AppConfig
     private var webViewInitialized = false
 
     companion object {
-        private const val ARG_APP_ID = "app_id"
-        private const val ARG_APP_NAME = "app_name"
-        private const val ARG_APP_URL = "app_url"
-        private const val ARG_JS_INJECTION = "js_injection"
-        private const val ARG_USER_AGENT = "user_agent"
+        internal const val ARG_APP_ID = "app_id"
+        internal const val ARG_APP_NAME = "app_name"
+        internal const val ARG_APP_URL = "app_url"
+        internal const val ARG_ICON_RES_ID = "icon_res_id"
+        internal const val ARG_CSS_INJECTION = "css_injection"
+        internal const val ARG_JS_INJECTION = "js_injection"
+        internal const val ARG_USER_AGENT = "user_agent"
+        internal const val ARG_IS_MEDIA_APP = "is_media_app"
 
         fun newInstance(config: AppConfig): WebAppFragment {
             return WebAppFragment().apply {
@@ -34,8 +37,11 @@ class WebAppFragment : Fragment() {
                     putString(ARG_APP_ID, config.id)
                     putString(ARG_APP_NAME, config.name)
                     putString(ARG_APP_URL, config.url)
+                    putInt(ARG_ICON_RES_ID, config.iconResId)
+                    putString(ARG_CSS_INJECTION, config.cssInjection)
                     putString(ARG_JS_INJECTION, config.jsInjection)
                     putString(ARG_USER_AGENT, config.customUserAgent)
+                    putBoolean(ARG_IS_MEDIA_APP, config.isMediaApp)
                 }
             }
         }
@@ -48,9 +54,11 @@ class WebAppFragment : Fragment() {
                 id = it.getString(ARG_APP_ID, ""),
                 name = it.getString(ARG_APP_NAME, ""),
                 url = it.getString(ARG_APP_URL, ""),
-                iconResId = R.drawable.ic_music,
+                iconResId = it.getInt(ARG_ICON_RES_ID, R.drawable.ic_music),
+                cssInjection = it.getString(ARG_CSS_INJECTION),
                 jsInjection = it.getString(ARG_JS_INJECTION),
-                customUserAgent = it.getString(ARG_USER_AGENT)
+                customUserAgent = it.getString(ARG_USER_AGENT),
+                isMediaApp = it.getBoolean(ARG_IS_MEDIA_APP, false)
             )
         }
     }
