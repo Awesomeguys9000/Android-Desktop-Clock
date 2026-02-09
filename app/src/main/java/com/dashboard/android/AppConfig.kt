@@ -90,11 +90,25 @@ data class AppConfig(
                 iconResId = R.drawable.ic_keep
             ),
             AppConfig(
-                id = "youtube_music",
-                name = "YouTube Music",
-                url = "https://music.youtube.com",
-                iconResId = R.drawable.ic_youtube_music,
-                isMediaApp = true
+                id = "outlook",
+                name = "Outlook",
+                url = "https://outlook.live.com/mail/0/",
+                iconResId = R.drawable.ic_outlook,
+                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
+            AppConfig(
+                id = "asana",
+                name = "Asana",
+                url = "https://app.asana.com",
+                iconResId = R.drawable.ic_asana,
+                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
+            AppConfig(
+                id = "youtube",
+                name = "YouTube",
+                url = "https://youtube.com/tv",
+                iconResId = R.drawable.ic_youtube,
+                customUserAgent = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 5.0) AppleWebKit/537.3 (KHTML, like Gecko) SamsungBrowser/2.2 Chrome/63.0.3239.84 TV Safari/537.3"
             )
         )
     }
