@@ -30,6 +30,55 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     
     // WebView cache to keep apps running
     private val webViewCache = mutableMapOf<String, WebAppFragment>()
+
+    private var wasPlayingBeforeDisconnect = false
+
+    private val headsetReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY -> {
+                    // Earbuds removed -> Pause
+                    val controller = activeMediaController ?: mediaSession?.controller
+                    if (controller?.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING) {
+                        wasPlayingBeforeDisconnect = true
+                        controller.transportControls.pause()
+                    }
+                }
+                android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                    // Earbuds connected -> Resume if we were playing
+                    if (wasPlayingBeforeDisconnect) {
+                        val controller = activeMediaController ?: mediaSession?.controller
+                        controller?.transportControls?.play()
+                        wasPlayingBeforeDisconnect = false // Reset
+                    }
+                }
+                android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
+                    // Ensure paused
+                    val controller = activeMediaController ?: mediaSession?.controller
+                    if (controller?.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING) {
+                        wasPlayingBeforeDisconnect = true
+                        controller.transportControls.pause()
+                    }
+                }
+                android.content.Intent.ACTION_HEADSET_PLUG -> {
+                    val state = intent.getIntExtra("state", -1)
+                    if (state == 0) { // Unplugged
+                        val controller = activeMediaController ?: mediaSession?.controller
+                        if (controller?.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING) {
+                            wasPlayingBeforeDisconnect = true
+                            controller.transportControls.pause()
+                        }
+                    } else if (state == 1) { // Plugged
+                        if (wasPlayingBeforeDisconnect) {
+                            val controller = activeMediaController ?: mediaSession?.controller
+                            controller?.transportControls?.play()
+                            wasPlayingBeforeDisconnect = false
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +97,34 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         checkNotificationAccess()
         setupMediaSession()
         requestAudioFocus()
+
+        val filter = android.content.IntentFilter().apply {
+            addAction(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(android.bluetooth.BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            addAction(android.content.Intent.ACTION_HEADSET_PLUG)
+        }
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            headsetReceiver,
+            filter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+
+        // Request Bluetooth permission for Android 12+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.BLUETOOTH_CONNECT
+                ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                androidx.core.app.ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(android.Manifest.permission.BLUETOOTH_CONNECT),
+                    101
+                )
+            }
+        }
     }
     
     private fun hideSystemUI() {
@@ -320,6 +397,11 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            unregisterReceiver(headsetReceiver)
+        } catch (e: Exception) {
+            // Ignore if already unregistered or not registered
+        }
         mediaSessionManager?.removeOnActiveSessionsChangedListener(this)
         mediaSession?.release()
     }
