@@ -104,19 +104,23 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     }
 
     private fun requestAudioFocus() {
-        val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-        val focusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(
-                android.media.AudioAttributes.Builder()
-                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-            )
-            .setOnAudioFocusChangeListener { focusChange ->
-                // Optional: Handle focus loss (e.g. pause webview)
-            }
-            .build()
-        audioManager.requestAudioFocus(focusRequest)
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+            val focusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                )
+                .setOnAudioFocusChangeListener { focusChange ->
+                    // Optional: Handle focus loss (e.g. pause webview)
+                }
+                .build()
+            audioManager?.requestAudioFocus(focusRequest)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun setupMediaSession() {
@@ -317,6 +321,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     override fun onDestroy() {
         super.onDestroy()
         mediaSessionManager?.removeOnActiveSessionsChangedListener(this)
+        mediaSession?.release()
     }
     
     // ViewPager adapter for Notifications, Clock, Launcher
