@@ -14,42 +14,6 @@ data class AppConfig(
     val isMediaApp: Boolean = false
 ) {
     companion object {
-        // JavaScript to hide Apple Music "Get on Google Play" banner
-        private const val APPLE_MUSIC_JS = """
-            (function() {
-                function hideElements() {
-                    // Hide app store banners
-                    var selectors = [
-                        '.we-banner',
-                        '.smartbanner',
-                        '[class*="download"]',
-                        '[class*="app-banner"]',
-                        '[class*="store-badge"]',
-                        '.upsell-banner',
-                        '[class*="native-app"]',
-                        '#web-navigation-container',
-                        '[aria-label*="Get it on"]',
-                        '[aria-label*="Open in"]',
-                        '.banner-container',
-                        'div[role="banner"]',
-                        '.experience-upsell-container' 
-                    ];
-                    selectors.forEach(function(sel) {
-                        try {
-                            var elements = document.querySelectorAll(sel);
-                            elements.forEach(function(el) {
-                                // Aggressive removal
-                                el.remove(); 
-                            });
-                        } catch(e) {}
-                    });
-                }
-                // Run repeatedly for SPA navigation
-                hideElements();
-                setInterval(hideElements, 1000); // Check every second
-            })();
-        """
-        
         // Default apps list
         val defaultApps = listOf(
             AppConfig(
@@ -57,7 +21,6 @@ data class AppConfig(
                 name = "Apple Music",
                 url = "https://music.apple.com",
                 iconResId = R.drawable.ic_music,
-                jsInjection = APPLE_MUSIC_JS,
                 customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 isMediaApp = true
             ),
@@ -66,7 +29,6 @@ data class AppConfig(
                 name = "Apple Podcasts",
                 url = "https://podcasts.apple.com",
                 iconResId = R.drawable.ic_podcast,
-                jsInjection = APPLE_MUSIC_JS,
                 customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 isMediaApp = true
             ),
