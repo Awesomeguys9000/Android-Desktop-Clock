@@ -230,10 +230,23 @@ class ClockFragment : Fragment() {
                 // Update Media Source (App Name)
                 try {
                     val packageName = controller.packageName
-                    val pm = requireContext().packageManager
-                    val appInfo = pm.getApplicationInfo(packageName, 0)
-                    val appName = pm.getApplicationLabel(appInfo).toString()
-                    binding.mediaSource.text = appName
+                    if (packageName == requireContext().packageName) {
+                        val embeddedName = (activity as? MainActivity)?.getActiveEmbeddedAppName()
+                        if (embeddedName != null) {
+                            binding.mediaSource.text = embeddedName.uppercase()
+                        } else {
+                            val pm = requireContext().packageManager
+                            val appInfo = pm.getApplicationInfo(packageName, 0)
+                            val appName = pm.getApplicationLabel(appInfo).toString()
+                            binding.mediaSource.text = appName
+                        }
+                    } else {
+                        val pm = requireContext().packageManager
+                        val appInfo = pm.getApplicationInfo(packageName, 0)
+                        val appName = pm.getApplicationLabel(appInfo).toString()
+                        binding.mediaSource.text = appName
+                    }
+                    binding.mediaSource.typeface = android.graphics.Typeface.DEFAULT_BOLD
                     binding.mediaSource.visibility = View.VISIBLE
                 } catch (e: Exception) {
                     binding.mediaSource.visibility = View.GONE
