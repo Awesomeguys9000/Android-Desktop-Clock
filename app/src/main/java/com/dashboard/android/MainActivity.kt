@@ -192,6 +192,10 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     
     fun getActiveMediaController(): MediaController? = activeMediaController
     
+    fun getActiveEmbeddedAppName(): String? {
+        return AppConfig.defaultApps.find { it.id == lastActiveMediaAppId }?.name
+    }
+
     fun showWebApp(appConfig: AppConfig) {
         activeWebAppId = appConfig.id
         
