@@ -321,6 +321,11 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         hideSystemUI()
         updateActiveMediaController()
     }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        hideSystemUI()
+    }
     
     override fun onDestroy() {
         super.onDestroy()
