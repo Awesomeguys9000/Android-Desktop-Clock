@@ -233,7 +233,7 @@ class ClockFragment : Fragment() {
                     if (packageName == requireContext().packageName) {
                         val embeddedName = (activity as? MainActivity)?.getActiveEmbeddedAppName()
                         if (embeddedName != null) {
-                            binding.mediaSource.text = embeddedName.uppercase()
+                            binding.mediaSource.text = "${embeddedName.uppercase()} (𝑒)"
                         } else {
                             val pm = requireContext().packageManager
                             val appInfo = pm.getApplicationInfo(packageName, 0)
