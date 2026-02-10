@@ -14,6 +14,10 @@ import android.widget.ImageButton
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.dashboard.android.databinding.FragmentClockBinding
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -27,6 +31,66 @@ class ClockFragment : Fragment() {
     private var is24Hour = false
     private var showSeconds = true
     private var clockColor = 0xFFFFFFFF.toInt()
+
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            updateBatteryInfo(intent)
+        }
+    }
+
+    private var isFlashing = false
+
+    private val flashRunnable = object : Runnable {
+        override fun run() {
+            if (_binding != null) {
+                binding.batteryText.visibility = if (binding.batteryText.visibility == View.VISIBLE) View.INVISIBLE else View.VISIBLE
+                handler.postDelayed(this, 1000)
+            }
+        }
+    }
+
+    private fun updateBatteryInfo(intent: Intent) {
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+        val plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1)
+
+        val percent = if (level != -1 && scale != -1) {
+            (level * 100) / scale
+        } else {
+            0
+        }
+
+        val isPlugged = plugged == BatteryManager.BATTERY_PLUGGED_AC ||
+                plugged == BatteryManager.BATTERY_PLUGGED_USB ||
+                plugged == BatteryManager.BATTERY_PLUGGED_WIRELESS
+
+        if (isPlugged) {
+            binding.batteryText.visibility = View.GONE
+            stopFlashing()
+        } else {
+            binding.batteryText.text = "$percent%"
+            if (percent <= 10) {
+                startFlashing()
+            } else {
+                stopFlashing()
+                binding.batteryText.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun startFlashing() {
+        if (!isFlashing) {
+            isFlashing = true
+            handler.post(flashRunnable)
+        }
+    }
+
+    private fun stopFlashing() {
+        if (isFlashing) {
+            isFlashing = false
+            handler.removeCallbacks(flashRunnable)
+        }
+    }
     
     private val clockRunnable = object : Runnable {
         override fun run() {
@@ -327,6 +391,7 @@ class ClockFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         handler.post(clockRunnable)
+        requireContext().registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         
         // Setup media listeners
         val manager = requireContext().getSystemService(Context.MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
@@ -354,6 +419,8 @@ class ClockFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(clockRunnable)
+        requireContext().unregisterReceiver(batteryReceiver)
+        stopFlashing()
         
         // Cleanup media listeners
         val manager = requireContext().getSystemService(Context.MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
