@@ -1,5 +1,6 @@
 package com.dashboard.android
 
+import android.app.Notification
 import android.os.Bundle
 import android.service.notification.StatusBarNotification
 import android.view.LayoutInflater
@@ -154,11 +155,13 @@ class NotificationsFragment : Fragment(), NotificationService.NotificationUpdate
             }
             
             // Title (Sender)
-            val title = extras.getCharSequence("android.title") ?: "Unknown"
+            val title = extras.getCharSequence(Notification.EXTRA_TITLE)
+                ?: extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)
+                ?: "Unknown"
             holder.binding.notificationTitle.text = title
             
             // Message Snippet
-            val text = extras.getCharSequence("android.text") ?: ""
+            val text = extras.getCharSequence(Notification.EXTRA_TEXT) ?: ""
             holder.binding.notificationText.text = text
             holder.binding.notificationText.visibility = View.VISIBLE
             
