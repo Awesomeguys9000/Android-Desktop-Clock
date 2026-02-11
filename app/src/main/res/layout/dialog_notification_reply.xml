@@ -75,7 +75,7 @@
                 android:hint="Type a message..."
                 android:background="@null"
                 android:padding="12dp"
-                android:textColor="@color/text_primary"
+                android:textColor="#FFFFFF"
                 android:textColorHint="@color/text_secondary"
                 android:inputType="textCapSentences|textMultiLine"
                 android:maxLines="3" />

@@ -125,18 +125,7 @@ class NotificationReplyDialog : DialogFragment(), NotificationService.Notificati
         val messagesList = mutableListOf<MessageAdapter.Message>()
         val extras = notification.extras
 
-        // Try MessagingStyle first
-        // Fix: Use full class path or check imports. Notification.MessagingStyle should work for API 24+
-        // If compilation fails on extractMessagingStyleFromNotification, it might be available only on builder or compat.
-        // Actually, Notification.MessagingStyle.extractMessagingStyleFromNotification was added in API 28?
-        // Let's check compat.
-
-        // Strategy: Use reflection or Compat if available, or just try-catch for API versions.
-        // However, standard Android Notification.MessagingStyle should work if compileSdk is 34.
-        // The error said "Unresolved reference". It might be static method on Notification, not the inner class?
-        // No, it is on Notification.MessagingStyle.
-
-        // Retrying with androidx.core.app.NotificationCompat which is safer.
+        // Try using NotificationCompat from androidx.core.app
         val messagingStyle = try {
             androidx.core.app.NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
         } catch (e: Exception) {
@@ -144,16 +133,21 @@ class NotificationReplyDialog : DialogFragment(), NotificationService.Notificati
         }
 
         if (messagingStyle != null) {
+            // messagingStyle.messages is a List<NotificationCompat.MessagingStyle.Message>
             messagingStyle.messages.forEach { msg ->
                 val text = msg.text?.toString() ?: ""
-                val sender = msg.person?.name?.toString() ?: "Unknown"
+
+                // Logic Fix: If person is null, it's the user (Self)
+                // In androidx.core.app.Person
+                val isSelf = msg.person == null
+                val sender = msg.person?.name?.toString() ?: "Me"
 
                 messagesList.add(
                     MessageAdapter.Message(
                         text = text,
                         sender = sender,
                         timestamp = msg.timestamp,
-                        isSelf = false
+                        isSelf = isSelf
                     )
                 )
             }
