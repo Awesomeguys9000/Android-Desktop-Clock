@@ -151,30 +151,45 @@ class WebAppFragment : Fragment() {
                 // Inject JavaScript to hide banners AND poll for metadata
                 val metadataJs = """
                     (function() {
-                        setInterval(function() {
+                        var checkInterval = setInterval(function() {
                             try {
-                                var title = "";
-                                var artist = "";
-                                var isPlaying = false;
-                                
-                                // Apple Music
-                                if (window.MusicKit) {
-                                    var mk = window.MusicKit.getInstance();
-                                    if (mk && mk.nowPlayingItem) {
-                                        title = mk.nowPlayingItem.title;
-                                        artist = mk.nowPlayingItem.artistName;
-                                        isPlaying = mk.isPlaying;
-                                    }
-                                }
-                                
-                                // Send to Android
-                                if (title && window.Android && window.Android.postMessage) {
-                                    window.Android.postMessage(JSON.stringify({
-                                        type: "updateMediaMetadata",
-                                        title: title,
-                                        artist: artist,
-                                        isPlaying: isPlaying
-                                    }));
+                                var mk = window.MusicKit && window.MusicKit.getInstance();
+                                if (mk) {
+                                    clearInterval(checkInterval);
+
+                                    var sendUpdate = function() {
+                                        try {
+                                            var title = "";
+                                            var artist = "";
+                                            var isPlaying = false;
+
+                                            if (mk.nowPlayingItem) {
+                                                title = mk.nowPlayingItem.title;
+                                                artist = mk.nowPlayingItem.artistName;
+                                                isPlaying = mk.isPlaying;
+                                            }
+
+                                            if (title && window.Android && window.Android.postMessage) {
+                                                window.Android.postMessage(JSON.stringify({
+                                                    type: "updateMediaMetadata",
+                                                    title: title,
+                                                    artist: artist,
+                                                    isPlaying: isPlaying
+                                                }));
+                                            }
+                                        } catch(e) {}
+                                    };
+
+                                    // Initial update
+                                    sendUpdate();
+
+                                    // Event listeners for efficient updates
+                                    try { mk.addEventListener('playbackStateDidChange', sendUpdate); } catch(e) {}
+                                    try { mk.addEventListener('mediaItemDidChange', sendUpdate); } catch(e) {}
+                                    try { mk.addEventListener('nowPlayingItemDidChange', sendUpdate); } catch(e) {}
+
+                                    // Fallback heartbeat (reduced from 1s to 5s)
+                                    setInterval(sendUpdate, 5000);
                                 }
                             } catch(e) {}
                         }, 1000);
