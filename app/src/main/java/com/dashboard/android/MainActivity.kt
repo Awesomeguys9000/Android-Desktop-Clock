@@ -22,6 +22,8 @@ import com.dashboard.android.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsChangedListener {
 
+    private val MEDIA_CHANNEL_ID = "media_channel"
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var viewPager: ViewPager2
     private var mediaSessionManager: MediaSessionManager? = null
@@ -47,9 +49,18 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         setupViewPager()
         checkNotificationAccess()
         setupMediaSession()
+        createNotificationChannel()
         requestAudioFocus()
     }
     
+    private fun createNotificationChannel() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val channel = android.app.NotificationChannel(MEDIA_CHANNEL_ID, "Media Playback", android.app.NotificationManager.IMPORTANCE_LOW)
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
     private fun hideSystemUI() {
         val windowInsetsController = WindowInsetsControllerCompat(window, binding.root)
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
@@ -285,15 +296,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     }
     
     private fun showMediaNotification(title: String, artist: String, isPlaying: Boolean) {
-        val channelId = "media_channel"
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            if (notificationManager.getNotificationChannel(channelId) == null) {
-                val channel = android.app.NotificationChannel(channelId, "Media Playback", android.app.NotificationManager.IMPORTANCE_LOW)
-                notificationManager.createNotificationChannel(channel)
-            }
-        }
         
         val pauseAction = android.app.Notification.Action.Builder(
             android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_pause), "Pause",
@@ -305,7 +308,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
             android.app.PendingIntent.getBroadcast(this, 2, Intent("ACTION_PLAY"), android.app.PendingIntent.FLAG_IMMUTABLE)
         ).build()
 
-        val notification = android.app.Notification.Builder(this, channelId)
+        val notification = android.app.Notification.Builder(this, MEDIA_CHANNEL_ID)
             .setStyle(android.app.Notification.MediaStyle().setMediaSession(mediaSession?.sessionToken))
             .setSmallIcon(R.drawable.ic_music)
             .setContentTitle(title)
