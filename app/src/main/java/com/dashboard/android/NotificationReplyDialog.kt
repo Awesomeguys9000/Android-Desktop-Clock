@@ -16,6 +16,7 @@ import android.view.Window
 import android.widget.Toast
 import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.dashboard.android.databinding.DialogNotificationReplyBinding
 
 class NotificationReplyDialog : DialogFragment(), NotificationService.NotificationUpdateListener {
@@ -68,10 +69,26 @@ class NotificationReplyDialog : DialogFragment(), NotificationService.Notificati
 
     private fun setupRecyclerView() {
         messageAdapter = MessageAdapter()
-        binding.messagesList.layoutManager = LinearLayoutManager(context).apply {
-            stackFromEnd = true // Start from bottom
-        }
+        val layoutManager = LinearLayoutManager(context)
+        layoutManager.stackFromEnd = true // Start from bottom
+        binding.messagesList.layoutManager = layoutManager
         binding.messagesList.adapter = messageAdapter
+
+        // Scroll Logic: Detect keyboard open/resize and keep bottom pinned if we were already there
+        binding.messagesList.addOnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (bottom < oldBottom) {
+                // Height decreased (likely keyboard opened)
+                val lastVisiblePos = layoutManager.findLastVisibleItemPosition()
+                val itemCount = messageAdapter.itemCount
+
+                // If we were looking at the bottom (or close to it), scroll to bottom again
+                if (itemCount > 0 && lastVisiblePos >= itemCount - 2) {
+                    binding.messagesList.post {
+                        binding.messagesList.scrollToPosition(itemCount - 1)
+                    }
+                }
+            }
+        }
     }
 
     override fun onStart() {
