@@ -73,5 +73,14 @@ data class AppConfig(
                 customUserAgent = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 5.0) AppleWebKit/537.3 (KHTML, like Gecko) SamsungBrowser/2.2 Chrome/63.0.3239.84 TV Safari/537.3"
             )
         )
+
+        val MESSAGING_APP_PACKAGES = setOf(
+            "com.google.android.apps.messaging", // Google Messages
+            "com.instagram.android",             // Instagram
+            "com.facebook.orca",                 // Facebook Messenger
+            "com.whatsapp",                      // WhatsApp
+            "org.telegram.messenger",            // Telegram
+            "org.thoughtcrime.securesms"         // Signal
+        )
     }
 }
