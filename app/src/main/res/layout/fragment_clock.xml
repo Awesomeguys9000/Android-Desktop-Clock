@@ -38,8 +38,8 @@
             android:layout_height="wrap_content"
             android:textSize="120sp"
             android:textColor="@color/clock_white"
-            android:fontFamily="sans-serif-light"
-            android:letterSpacing="0.05"
+            android:fontFamily="monospace"
+            android:fontFeatureSettings="tnum"
             tools:text="12:34:56" />
 
         <TextView
