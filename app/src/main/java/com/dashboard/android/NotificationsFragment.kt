@@ -1,19 +1,19 @@
 package com.dashboard.android
 
-import android.content.Intent
+import android.app.Notification
 import android.os.Bundle
 import android.service.notification.StatusBarNotification
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.dashboard.android.databinding.FragmentNotificationsBinding
-import com.dashboard.android.databinding.ItemNotificationBinding
+import com.dashboard.android.databinding.ItemNotificationCardBinding
 
-class NotificationsFragment : Fragment() {
+class NotificationsFragment : Fragment(), NotificationService.NotificationUpdateListener {
 
     private var _binding: FragmentNotificationsBinding? = null
     private val binding get() = _binding!!
@@ -32,11 +32,12 @@ class NotificationsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         
         adapter = NotificationAdapter { notification ->
-            // Open the source app
-            notification.notification.contentIntent?.send()
+            // Open the detail dialog
+            NotificationReplyDialog.newInstance(notification)
+                .show(childFragmentManager, "reply_dialog")
         }
         
-        binding.notificationsList.layoutManager = LinearLayoutManager(context)
+        binding.notificationsList.layoutManager = GridLayoutManager(context, 3)
         binding.notificationsList.adapter = adapter
         
         // Swipe to dismiss
@@ -53,13 +54,22 @@ class NotificationsFragment : Fragment() {
                 val position = viewHolder.adapterPosition
                 val notification = adapter.notifications[position]
                 NotificationService.instance?.cancelNotification(notification.key)
+                // Also remove mock if it is one
+                NotificationService.instance?.removeMockNotification(notification.key)
                 adapter.removeAt(position)
                 updateEmptyState()
             }
         }
         ItemTouchHelper(swipeHandler).attachToRecyclerView(binding.notificationsList)
         
+        NotificationService.instance?.addListener(this)
         loadNotifications()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        NotificationService.instance?.removeListener(this)
+        _binding = null
     }
 
     override fun onResume() {
@@ -67,9 +77,26 @@ class NotificationsFragment : Fragment() {
         loadNotifications()
     }
 
+    override fun onNotificationPosted(sbn: StatusBarNotification) {
+        activity?.runOnUiThread {
+            loadNotifications()
+        }
+    }
+
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        activity?.runOnUiThread {
+            loadNotifications()
+        }
+    }
+
     private fun loadNotifications() {
-        val notifications = NotificationService.instance?.getActiveNotifications()?.toList() ?: emptyList()
-        adapter.updateNotifications(notifications.sortedByDescending { it.postTime })
+        val allNotifications = NotificationService.instance?.getAllNotifications() ?: emptyList()
+
+        val filtered = allNotifications.filter {
+            AppConfig.MESSAGING_APP_PACKAGES.contains(it.packageName)
+        }
+
+        adapter.updateNotifications(filtered.sortedByDescending { it.postTime })
         updateEmptyState()
     }
 
@@ -81,11 +108,6 @@ class NotificationsFragment : Fragment() {
             binding.emptyText.visibility = View.GONE
             binding.notificationsList.visibility = View.VISIBLE
         }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 
     // RecyclerView Adapter
@@ -108,11 +130,11 @@ class NotificationsFragment : Fragment() {
             }
         }
 
-        inner class NotificationViewHolder(val binding: ItemNotificationBinding) :
+        inner class NotificationViewHolder(val binding: ItemNotificationCardBinding) :
             RecyclerView.ViewHolder(binding.root)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NotificationViewHolder {
-            val binding = ItemNotificationBinding.inflate(
+            val binding = ItemNotificationCardBinding.inflate(
                 LayoutInflater.from(parent.context), parent, false
             )
             return NotificationViewHolder(binding)
@@ -125,33 +147,27 @@ class NotificationsFragment : Fragment() {
             
             // App icon
             try {
+                // If mocking, we might not have the app installed, so fallback
                 val appIcon = context?.packageManager?.getApplicationIcon(sbn.packageName)
-                holder.binding.appIcon.setImageDrawable(appIcon)
+                holder.binding.notificationIcon.setImageDrawable(appIcon)
             } catch (e: Exception) {
-                holder.binding.appIcon.setImageResource(R.drawable.ic_notification)
+                holder.binding.notificationIcon.setImageResource(R.drawable.ic_notification)
             }
             
-            // Title and text
-            holder.binding.notificationTitle.text = extras.getCharSequence("android.title") ?: ""
-            holder.binding.notificationText.text = extras.getCharSequence("android.text") ?: ""
+            // Title (Sender)
+            val title = extras.getCharSequence(Notification.EXTRA_TITLE)
+                ?: extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)
+                ?: "Unknown"
+            holder.binding.notificationTitle.text = title
             
-            // Timestamp
-            val ago = getTimeAgo(sbn.postTime)
-            holder.binding.notificationTime.text = ago
+            // Message Snippet
+            val text = extras.getCharSequence(Notification.EXTRA_TEXT) ?: ""
+            holder.binding.notificationText.text = text
+            holder.binding.notificationText.visibility = View.VISIBLE
             
             holder.binding.root.setOnClickListener { onClick(sbn) }
         }
 
         override fun getItemCount() = notifications.size
-
-        private fun getTimeAgo(time: Long): String {
-            val diff = System.currentTimeMillis() - time
-            return when {
-                diff < 60000 -> "now"
-                diff < 3600000 -> "${diff / 60000}m"
-                diff < 86400000 -> "${diff / 3600000}h"
-                else -> "${diff / 86400000}d"
-            }
-        }
     }
 }
