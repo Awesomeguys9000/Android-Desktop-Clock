@@ -71,6 +71,13 @@ data class AppConfig(
                 url = "https://youtube.com/tv",
                 iconResId = R.drawable.ic_youtube,
                 customUserAgent = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 5.0) AppleWebKit/537.3 (KHTML, like Gecko) SamsungBrowser/2.2 Chrome/63.0.3239.84 TV Safari/537.3"
+            ),
+            AppConfig(
+                id = "google",
+                name = "Google",
+                url = "https://google.com.au",
+                iconResId = R.drawable.ic_google,
+                customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
         )
     }
