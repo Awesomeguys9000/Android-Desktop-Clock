@@ -40,15 +40,6 @@ class ClockFragment : Fragment() {
 
     private var isFlashing = false
 
-    private val flashRunnable = object : Runnable {
-        override fun run() {
-            if (_binding != null) {
-                binding.batteryText.visibility = if (binding.batteryText.visibility == View.VISIBLE) View.INVISIBLE else View.VISIBLE
-                handler.postDelayed(this, 1000)
-            }
-        }
-    }
-
     private fun updateBatteryInfo(intent: Intent) {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
@@ -81,14 +72,13 @@ class ClockFragment : Fragment() {
     private fun startFlashing() {
         if (!isFlashing) {
             isFlashing = true
-            handler.post(flashRunnable)
+            updateClock()
         }
     }
 
     private fun stopFlashing() {
         if (isFlashing) {
             isFlashing = false
-            handler.removeCallbacks(flashRunnable)
         }
     }
     
@@ -162,6 +152,13 @@ class ClockFragment : Fragment() {
         // Date format
         val dateFormat = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault())
         binding.dateText.text = dateFormat.format(now)
+
+        if (isFlashing) {
+            val calendar = Calendar.getInstance()
+            calendar.time = now
+            val second = calendar.get(Calendar.SECOND)
+            binding.batteryText.visibility = if (second % 2 == 0) View.VISIBLE else View.INVISIBLE
+        }
     }
 
     private fun toggleSettingsPanel() {
