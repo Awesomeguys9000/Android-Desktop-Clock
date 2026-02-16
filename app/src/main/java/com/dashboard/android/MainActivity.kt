@@ -29,7 +29,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     private var mediaSession: android.media.session.MediaSession? = null
     
     // WebView cache to keep apps running
-    private val webViewCache = mutableMapOf<String, WebAppFragment>()
+    private val webViewCache = mutableMapOf<String, Fragment>()
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -130,16 +130,16 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                 setCallback(object : android.media.session.MediaSession.Callback() {
                     override fun onPlay() {
                         requestAudioFocus()
-                        lastActiveMediaAppId?.let { webViewCache[it]?.play() }
+                        lastActiveMediaAppId?.let { (webViewCache[it] as? WebAppFragment)?.play() }
                     }
                     override fun onPause() {
-                        lastActiveMediaAppId?.let { webViewCache[it]?.pause() }
+                        lastActiveMediaAppId?.let { (webViewCache[it] as? WebAppFragment)?.pause() }
                     }
                     override fun onSkipToNext() {
-                        lastActiveMediaAppId?.let { webViewCache[it]?.skipNext() }
+                        lastActiveMediaAppId?.let { (webViewCache[it] as? WebAppFragment)?.skipNext() }
                     }
                     override fun onSkipToPrevious() {
-                        lastActiveMediaAppId?.let { webViewCache[it]?.skipPrevious() }
+                        lastActiveMediaAppId?.let { (webViewCache[it] as? WebAppFragment)?.skipPrevious() }
                     }
                 })
                 isActive = true
@@ -232,7 +232,11 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         // Get or create cached WebAppFragment
         var fragment = webViewCache[appConfig.id]
         if (fragment == null) {
-            fragment = WebAppFragment.newInstance(appConfig)
+            fragment = if (appConfig.id == "otp_authenticator") {
+                OtpFragment()
+            } else {
+                WebAppFragment.newInstance(appConfig)
+            }
             webViewCache[appConfig.id] = fragment
             transaction.add(R.id.webAppContainer, fragment, appConfig.id)
         } else {
