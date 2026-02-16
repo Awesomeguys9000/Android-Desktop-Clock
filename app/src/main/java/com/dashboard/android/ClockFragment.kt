@@ -20,6 +20,12 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import java.text.SimpleDateFormat
 import java.util.*
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.telephony.TelephonyManager
+import android.content.pm.PackageManager
 
 class ClockFragment : Fragment() {
 
@@ -35,6 +41,30 @@ class ClockFragment : Fragment() {
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             updateBatteryInfo(intent)
+        }
+    }
+
+    private val notificationListener = object : NotificationService.NotificationUpdateListener {
+        override fun onNotificationPosted(sbn: android.service.notification.StatusBarNotification) {
+            updateUnreadIndicator()
+        }
+
+        override fun onNotificationRemoved(sbn: android.service.notification.StatusBarNotification) {
+            updateUnreadIndicator()
+        }
+    }
+
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            updateNetworkInfo()
+        }
+
+        override fun onLost(network: Network) {
+            updateNetworkInfo()
+        }
+
+        override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+            updateNetworkInfo()
         }
     }
 
@@ -79,6 +109,55 @@ class ClockFragment : Fragment() {
     private fun stopFlashing() {
         if (isFlashing) {
             isFlashing = false
+        }
+    }
+
+    private fun updateUnreadIndicator() {
+        activity?.runOnUiThread {
+            if (_binding != null) {
+                val allNotifications = NotificationService.instance?.getAllNotifications() ?: emptyList()
+                val hasUnread = allNotifications.any {
+                    AppConfig.MESSAGING_APP_PACKAGES.contains(it.packageName)
+                }
+                binding.unreadIndicator.visibility = if (hasUnread) View.VISIBLE else View.GONE
+            }
+        }
+    }
+
+    private fun updateNetworkInfo() {
+        activity?.runOnUiThread {
+            if (_binding != null) {
+                val cm = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                val activeNetwork = cm.activeNetwork
+                val caps = cm.getNetworkCapabilities(activeNetwork)
+
+                if (caps != null) {
+                    when {
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+                            binding.dataIndicator.text = "WiFi"
+                            binding.dataIndicator.visibility = View.VISIBLE
+                        }
+                        caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> {
+                            val tm = requireContext().getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+                            if (requireContext().checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+                                when (tm.dataNetworkType) {
+                                    TelephonyManager.NETWORK_TYPE_NR -> binding.dataIndicator.text = "5G"
+                                    TelephonyManager.NETWORK_TYPE_LTE -> binding.dataIndicator.text = "4G"
+                                    else -> binding.dataIndicator.text = "Data"
+                                }
+                            } else {
+                                binding.dataIndicator.text = "Data"
+                            }
+                            binding.dataIndicator.visibility = View.VISIBLE
+                        }
+                        else -> {
+                            binding.dataIndicator.visibility = View.GONE
+                        }
+                    }
+                } else {
+                    binding.dataIndicator.visibility = View.GONE
+                }
+            }
         }
     }
     
@@ -390,6 +469,13 @@ class ClockFragment : Fragment() {
         handler.post(clockRunnable)
         requireContext().registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         
+        NotificationService.instance?.addListener(notificationListener)
+        updateUnreadIndicator()
+
+        val cm = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        cm.registerNetworkCallback(NetworkRequest.Builder().build(), networkCallback)
+        updateNetworkInfo()
+
         // Setup media listeners
         val manager = requireContext().getSystemService(Context.MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
         try {
@@ -418,6 +504,11 @@ class ClockFragment : Fragment() {
         handler.removeCallbacks(clockRunnable)
         requireContext().unregisterReceiver(batteryReceiver)
         stopFlashing()
+
+        NotificationService.instance?.removeListener(notificationListener)
+
+        val cm = requireContext().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        cm.unregisterNetworkCallback(networkCallback)
         
         // Cleanup media listeners
         val manager = requireContext().getSystemService(Context.MEDIA_SESSION_SERVICE) as android.media.session.MediaSessionManager
