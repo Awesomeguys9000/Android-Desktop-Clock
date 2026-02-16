@@ -146,12 +146,26 @@ class NotificationsFragment : Fragment(), NotificationService.NotificationUpdate
             val extras = notification.extras
             
             // App icon
-            try {
-                // If mocking, we might not have the app installed, so fallback
-                val appIcon = context?.packageManager?.getApplicationIcon(sbn.packageName)
-                holder.binding.notificationIcon.setImageDrawable(appIcon)
-            } catch (e: Exception) {
-                holder.binding.notificationIcon.setImageResource(R.drawable.ic_notification)
+            val iconResId = when (sbn.packageName) {
+                "com.google.android.apps.messaging" -> R.drawable.ic_messages
+                "com.instagram.android" -> R.drawable.ic_instagram
+                "com.facebook.orca" -> R.drawable.ic_messenger
+                "com.whatsapp" -> R.drawable.ic_whatsapp
+                "org.telegram.messenger" -> R.drawable.ic_telegram
+                "org.thoughtcrime.securesms" -> R.drawable.ic_signal
+                else -> null
+            }
+
+            if (iconResId != null) {
+                holder.binding.notificationIcon.setImageResource(iconResId)
+            } else {
+                try {
+                    // If mocking, we might not have the app installed, so fallback
+                    val appIcon = context?.packageManager?.getApplicationIcon(sbn.packageName)
+                    holder.binding.notificationIcon.setImageDrawable(appIcon)
+                } catch (e: Exception) {
+                    holder.binding.notificationIcon.setImageResource(R.drawable.ic_notification)
+                }
             }
             
             // Title (Sender)
