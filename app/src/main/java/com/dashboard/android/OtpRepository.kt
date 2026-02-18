@@ -61,6 +61,15 @@ class OtpRepository(context: Context) {
         saveEntries(current)
     }
 
+    fun moveEntry(fromIndex: Int, toIndex: Int) {
+        val current = getEntries().toMutableList()
+        if (fromIndex in current.indices && toIndex in current.indices) {
+            val item = current.removeAt(fromIndex)
+            current.add(toIndex, item)
+            saveEntries(current)
+        }
+    }
+
     private fun parseJson(json: String): List<OtpEntry> {
         val list = mutableListOf<OtpEntry>()
         val array = JSONArray(json)

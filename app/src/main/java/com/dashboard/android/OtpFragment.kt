@@ -15,6 +15,7 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.webkit.WebViewAssetLoader
@@ -57,13 +58,63 @@ class OtpFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        adapter = OtpAdapter(repository.getEntries(), { id ->
-            repository.deleteEntry(id)
-            adapter.updateData(repository.getEntries())
-        })
+        val singleFingerScroll = requireContext().getSharedPreferences("clock_prefs", android.content.Context.MODE_PRIVATE)
+            .getBoolean("single_finger_2fa_scroll", true)
+
+        adapter = OtpAdapter(
+            repository.getEntries(),
+            singleFingerScroll,
+            onDelete = { id ->
+                repository.deleteEntry(id)
+                adapter.updateData(repository.getEntries())
+            },
+            onStartDrag = { holder ->
+                itemTouchHelper.startDrag(holder)
+            }
+        )
         binding.recyclerOtp.layoutManager = LinearLayoutManager(context)
         binding.recyclerOtp.adapter = adapter
+        itemTouchHelper.attachToRecyclerView(binding.recyclerOtp)
     }
+
+    private val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.Callback() {
+        override fun getMovementFlags(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder): Int {
+            val dragFlags = ItemTouchHelper.UP or ItemTouchHelper.DOWN
+            return makeMovementFlags(dragFlags, 0)
+        }
+
+        override fun onMove(
+            recyclerView: RecyclerView,
+            viewHolder: RecyclerView.ViewHolder,
+            target: RecyclerView.ViewHolder
+        ): Boolean {
+            val fromPos = viewHolder.adapterPosition
+            val toPos = target.adapterPosition
+            repository.moveEntry(fromPos, toPos)
+            adapter.onItemMove(fromPos, toPos)
+            return true
+        }
+
+        override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+            // No swipe behavior
+        }
+
+        override fun isLongPressDragEnabled(): Boolean {
+            return false // We handle this manually
+        }
+
+        override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+            super.onSelectedChanged(viewHolder, actionState)
+            if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                viewHolder?.itemView?.alpha = 0.5f
+            }
+        }
+
+        override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+            super.clearView(recyclerView, viewHolder)
+            viewHolder.itemView.alpha = 1.0f
+        }
+    })
 
     private fun setupListeners() {
         binding.btnBack.setOnClickListener {
@@ -212,16 +263,33 @@ class OtpFragment : Fragment() {
 
     class OtpAdapter(
         private var entries: List<OtpRepository.OtpEntry>,
-        private val onDelete: (String) -> Unit
+        private val singleFingerScroll: Boolean,
+        private val onDelete: (String) -> Unit,
+        private val onStartDrag: (RecyclerView.ViewHolder) -> Unit
     ) : RecyclerView.Adapter<OtpAdapter.OtpViewHolder>() {
 
         private val visibleCodes = mutableSetOf<String>()
-        private val deleteVisible = mutableSetOf<String>()
+        private val deleteVisible = mutableSetOf<String>() // Acts as "Edit Mode"
         private var lastSeconds = -1
 
         fun updateData(newEntries: List<OtpRepository.OtpEntry>) {
             entries = newEntries
             notifyDataSetChanged()
+        }
+
+        fun onItemMove(fromPosition: Int, toPosition: Int) {
+            val mutableEntries = entries.toMutableList()
+            if (fromPosition < toPosition) {
+                for (i in fromPosition until toPosition) {
+                    java.util.Collections.swap(mutableEntries, i, i + 1)
+                }
+            } else {
+                for (i in fromPosition downTo toPosition + 1) {
+                    java.util.Collections.swap(mutableEntries, i, i - 1)
+                }
+            }
+            entries = mutableEntries
+            notifyItemMoved(fromPosition, toPosition)
         }
 
         fun updateTime(seconds: Int) {
@@ -238,13 +306,14 @@ class OtpFragment : Fragment() {
             return OtpViewHolder(binding)
         }
 
+        @android.annotation.SuppressLint("ClickableViewAccessibility")
         override fun onBindViewHolder(holder: OtpViewHolder, position: Int) {
             val entry = entries[position]
             holder.binding.textIssuer.text = entry.issuer
             holder.binding.textName.text = entry.name
 
             val isVisible = visibleCodes.contains(entry.id)
-            val isDeleteVisible = deleteVisible.contains(entry.id)
+            val isEditMode = deleteVisible.contains(entry.id)
 
             val code = TotpUtil.generateTotp(entry.secret)
             // Format 123456 -> 123 456
@@ -256,15 +325,16 @@ class OtpFragment : Fragment() {
 
             holder.binding.textCode.visibility = if (isVisible) View.VISIBLE else View.INVISIBLE
             holder.binding.imageHidden.visibility = if (isVisible) View.INVISIBLE else View.VISIBLE
-            holder.binding.btnDelete.visibility = if (isDeleteVisible) View.VISIBLE else View.GONE
 
-            // Re-calculate remaining locally or pass it in, but here we can just use the utility or rely on notifyDataSetChanged timing
+            holder.binding.btnDelete.visibility = if (isEditMode) View.VISIBLE else View.GONE
+            holder.binding.dragHandle.visibility = if (isEditMode) View.VISIBLE else View.GONE
+
             val remaining = TotpUtil.getRemainingSeconds()
             val color = if (remaining <= 10) 0xFFFF5555.toInt() else 0xFFFFFFFF.toInt()
             holder.binding.textCode.setTextColor(color)
 
             holder.binding.root.setOnClickListener {
-                if (isDeleteVisible) {
+                if (isEditMode) {
                     deleteVisible.remove(entry.id)
                 } else if (isVisible) {
                     visibleCodes.remove(entry.id)
@@ -284,7 +354,15 @@ class OtpFragment : Fragment() {
                 true
             }
 
-            // Prevent child clicks from triggering parent click for the delete button
+            holder.binding.dragHandle.setOnTouchListener { _, event ->
+                if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                    if (singleFingerScroll) {
+                        onStartDrag(holder)
+                    }
+                }
+                false
+            }
+
             holder.binding.btnDelete.setOnClickListener {
                 onDelete(entry.id)
                 deleteVisible.remove(entry.id) // Cleanup state after delete

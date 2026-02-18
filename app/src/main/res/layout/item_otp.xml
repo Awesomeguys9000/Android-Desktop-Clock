@@ -13,6 +13,18 @@
         android:layout_height="wrap_content"
         android:padding="16dp">
 
+        <ImageView
+            android:id="@+id/dragHandle"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_drag_handle"
+            android:layout_marginEnd="16dp"
+            android:visibility="gone"
+            app:tint="#888888"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
         <TextView
             android:id="@+id/textIssuer"
             android:layout_width="0dp"
@@ -21,9 +33,11 @@
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="8dp"
+            app:layout_constraintStart_toEndOf="@+id/dragHandle"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/btnDelete"/>
+            app:layout_constraintEnd_toStartOf="@+id/btnDelete"
+            app:layout_goneMarginStart="0dp"/>
 
         <TextView
             android:id="@+id/textName"
@@ -32,17 +46,21 @@
             android:text="account@example.com"
             android:textColor="#AAAAAA"
             android:textSize="14sp"
-            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="8dp"
+            app:layout_constraintStart_toEndOf="@+id/dragHandle"
             app:layout_constraintTop_toBottomOf="@+id/textIssuer"
-            app:layout_constraintEnd_toStartOf="@+id/btnDelete"/>
+            app:layout_constraintEnd_toStartOf="@+id/btnDelete"
+            app:layout_goneMarginStart="0dp"/>
 
         <FrameLayout
             android:id="@+id/codeContainer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/textName">
+            android:layout_marginStart="8dp"
+            app:layout_constraintStart_toEndOf="@+id/dragHandle"
+            app:layout_constraintTop_toBottomOf="@+id/textName"
+            app:layout_goneMarginStart="0dp">
 
             <TextView
                 android:id="@+id/textCode"
