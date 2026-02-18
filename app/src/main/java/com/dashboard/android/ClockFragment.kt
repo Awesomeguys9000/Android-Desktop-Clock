@@ -16,6 +16,9 @@ import androidx.fragment.app.Fragment
 import com.dashboard.android.databinding.FragmentClockBinding
 import android.content.BroadcastReceiver
 import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import android.content.IntentFilter
 import android.os.BatteryManager
 import java.text.SimpleDateFormat
@@ -31,6 +34,14 @@ class ClockFragment : Fragment() {
     private var is24Hour = false
     private var showSeconds = true
     private var clockColor = 0xFFFFFFFF.toInt()
+
+    private val exportLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let { performExport(it) }
+    }
+
+    private val importLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { performImport(it) }
+    }
 
     private val batteryReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -202,6 +213,15 @@ class ClockFragment : Fragment() {
         // Background style options
         setupBackgroundOptions()
         
+        // Data management
+        binding.btnExport.setOnClickListener {
+            exportLauncher.launch("dashboard_data.json")
+        }
+
+        binding.btnImport.setOnClickListener {
+            importLauncher.launch("application/json")
+        }
+
         // Close settings button
         binding.closeSettings.setOnClickListener {
             toggleSettingsPanel()
@@ -426,6 +446,40 @@ class ClockFragment : Fragment() {
             currentController?.unregisterCallback(mediaCallback)
         } catch (e: Exception) {
             // Ignore
+        }
+    }
+
+    private fun performExport(uri: Uri) {
+        try {
+            val jsonData = DataManagementUtils.exportData(requireContext())
+            requireContext().contentResolver.openOutputStream(uri)?.use { outputStream ->
+                outputStream.write(jsonData.toByteArray())
+            }
+            Toast.makeText(context, "Data exported successfully", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun performImport(uri: Uri) {
+        try {
+            requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
+                val jsonData = inputStream.bufferedReader().use { it.readText() }
+                if (DataManagementUtils.importData(requireContext(), jsonData)) {
+                    Toast.makeText(context, "Data imported successfully. Refreshing...", Toast.LENGTH_SHORT).show()
+                    loadPreferences()
+                    setupClockDisplay()
+                    setupSettingsPanel()
+                    // Optional: recreate activity to fully apply changes (e.g. WebView cookies)
+                    activity?.recreate()
+                } else {
+                    Toast.makeText(context, "Import failed: Invalid data", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(context, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
