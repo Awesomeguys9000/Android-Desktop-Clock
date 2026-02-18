@@ -216,6 +216,7 @@ class OtpFragment : Fragment() {
     ) : RecyclerView.Adapter<OtpAdapter.OtpViewHolder>() {
 
         private val visibleCodes = mutableSetOf<String>()
+        private val deleteVisible = mutableSetOf<String>()
         private var lastSeconds = -1
 
         fun updateData(newEntries: List<OtpRepository.OtpEntry>) {
@@ -243,6 +244,8 @@ class OtpFragment : Fragment() {
             holder.binding.textName.text = entry.name
 
             val isVisible = visibleCodes.contains(entry.id)
+            val isDeleteVisible = deleteVisible.contains(entry.id)
+
             val code = TotpUtil.generateTotp(entry.secret)
             // Format 123456 -> 123 456
             if (code.length == 6) {
@@ -253,6 +256,7 @@ class OtpFragment : Fragment() {
 
             holder.binding.textCode.visibility = if (isVisible) View.VISIBLE else View.INVISIBLE
             holder.binding.imageHidden.visibility = if (isVisible) View.INVISIBLE else View.VISIBLE
+            holder.binding.btnDelete.visibility = if (isDeleteVisible) View.VISIBLE else View.GONE
 
             // Re-calculate remaining locally or pass it in, but here we can just use the utility or rely on notifyDataSetChanged timing
             val remaining = TotpUtil.getRemainingSeconds()
@@ -260,7 +264,9 @@ class OtpFragment : Fragment() {
             holder.binding.textCode.setTextColor(color)
 
             holder.binding.root.setOnClickListener {
-                if (isVisible) {
+                if (isDeleteVisible) {
+                    deleteVisible.remove(entry.id)
+                } else if (isVisible) {
                     visibleCodes.remove(entry.id)
                 } else {
                     visibleCodes.add(entry.id)
@@ -268,9 +274,20 @@ class OtpFragment : Fragment() {
                 notifyItemChanged(position)
             }
 
+            holder.binding.root.setOnLongClickListener {
+                if (deleteVisible.contains(entry.id)) {
+                    deleteVisible.remove(entry.id)
+                } else {
+                    deleteVisible.add(entry.id)
+                }
+                notifyItemChanged(position)
+                true
+            }
+
             // Prevent child clicks from triggering parent click for the delete button
             holder.binding.btnDelete.setOnClickListener {
                 onDelete(entry.id)
+                deleteVisible.remove(entry.id) // Cleanup state after delete
             }
         }
 
