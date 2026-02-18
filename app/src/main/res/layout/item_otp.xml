@@ -18,8 +18,9 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="Issuer"
-            android:textColor="#AAAAAA"
-            android:textSize="14sp"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/btnDelete"/>
@@ -29,9 +30,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:text="account@example.com"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
+            android:textColor="#AAAAAA"
+            android:textSize="14sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textIssuer"
             app:layout_constraintEnd_toStartOf="@+id/btnDelete"/>

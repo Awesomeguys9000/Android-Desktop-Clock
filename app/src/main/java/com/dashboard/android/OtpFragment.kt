@@ -174,20 +174,34 @@ class OtpFragment : Fragment() {
     }
 
     private fun startTimer() {
+        binding.progressBar.max = 1000
+
         val runnable = object : Runnable {
             override fun run() {
                 if (_binding != null) {
-                    updateUI()
-                    handler.postDelayed(this, 1000)
+                    val millis = System.currentTimeMillis() % 30000
+                    val remainingMillis = 30000 - millis
+
+                    // Smooth progress (max 1000)
+                    val progress = (remainingMillis / 30000.0 * 1000).toInt()
+                    binding.progressBar.progress = progress
+
+                    // Color change
+                    if (remainingMillis <= 10000) {
+                        binding.progressBar.progressTintList = android.content.res.ColorStateList.valueOf(0xFFFF5555.toInt())
+                    } else {
+                        binding.progressBar.progressTintList = android.content.res.ColorStateList.valueOf(0xFF00E5FF.toInt())
+                    }
+
+                    // Update list text/colors if second changed (to avoid heavy binding every 50ms)
+                    val currentSeconds = (remainingMillis / 1000).toInt()
+                    adapter.updateTime(currentSeconds)
+
+                    handler.postDelayed(this, 50)
                 }
             }
         }
         handler.post(runnable)
-    }
-
-    private fun updateUI() {
-        binding.progressBar.progress = TotpUtil.getProgress()
-        adapter.notifyDataSetChanged()
     }
 
     override fun onDestroyView() {
@@ -202,10 +216,18 @@ class OtpFragment : Fragment() {
     ) : RecyclerView.Adapter<OtpAdapter.OtpViewHolder>() {
 
         private val visibleCodes = mutableSetOf<String>()
+        private var lastSeconds = -1
 
         fun updateData(newEntries: List<OtpRepository.OtpEntry>) {
             entries = newEntries
             notifyDataSetChanged()
+        }
+
+        fun updateTime(seconds: Int) {
+            if (seconds != lastSeconds) {
+                lastSeconds = seconds
+                notifyDataSetChanged()
+            }
         }
 
         inner class OtpViewHolder(val binding: ItemOtpBinding) : RecyclerView.ViewHolder(binding.root)
@@ -232,11 +254,12 @@ class OtpFragment : Fragment() {
             holder.binding.textCode.visibility = if (isVisible) View.VISIBLE else View.INVISIBLE
             holder.binding.imageHidden.visibility = if (isVisible) View.INVISIBLE else View.VISIBLE
 
+            // Re-calculate remaining locally or pass it in, but here we can just use the utility or rely on notifyDataSetChanged timing
             val remaining = TotpUtil.getRemainingSeconds()
             val color = if (remaining <= 10) 0xFFFF5555.toInt() else 0xFFFFFFFF.toInt()
             holder.binding.textCode.setTextColor(color)
 
-            holder.binding.codeContainer.setOnClickListener {
+            holder.binding.root.setOnClickListener {
                 if (isVisible) {
                     visibleCodes.remove(entry.id)
                 } else {
@@ -245,6 +268,7 @@ class OtpFragment : Fragment() {
                 notifyItemChanged(position)
             }
 
+            // Prevent child clicks from triggering parent click for the delete button
             holder.binding.btnDelete.setOnClickListener {
                 onDelete(entry.id)
             }
