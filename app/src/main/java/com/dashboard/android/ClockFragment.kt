@@ -30,6 +30,7 @@ class ClockFragment : Fragment() {
     private val handler = Handler(Looper.getMainLooper())
     private var is24Hour = false
     private var showSeconds = true
+    private var singleFingerScroll = true
     private var clockColor = 0xFFFFFFFF.toInt()
 
     private val batteryReceiver = object : BroadcastReceiver() {
@@ -113,6 +114,7 @@ class ClockFragment : Fragment() {
     private fun loadPreferences() {
         is24Hour = prefs.getBoolean("is_24_hour", false)
         showSeconds = prefs.getBoolean("show_seconds", true)
+        singleFingerScroll = prefs.getBoolean("single_finger_2fa_scroll", true)
         clockColor = prefs.getInt("clock_color", 0xFFFFFFFF.toInt())
         
         val backgroundStyle = prefs.getString("background_style", "animated_gradient")
@@ -194,6 +196,13 @@ class ClockFragment : Fragment() {
             showSeconds = isChecked
             prefs.edit().putBoolean("show_seconds", isChecked).apply()
             updateClock()
+        }
+
+        // Single Finger 2FA Scroll toggle
+        binding.toggleSingleFingerScroll.isChecked = singleFingerScroll
+        binding.toggleSingleFingerScroll.setOnCheckedChangeListener { _, isChecked ->
+            singleFingerScroll = isChecked
+            prefs.edit().putBoolean("single_finger_2fa_scroll", isChecked).apply()
         }
         
         // Color options

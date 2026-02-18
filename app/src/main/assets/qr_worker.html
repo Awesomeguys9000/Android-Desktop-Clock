@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="js/jsQR.js"></script>
+</head>
+<body>
+<script>
+    function decodeQr(base64Data) {
+        const image = new Image();
+        image.onload = function() {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            context.drawImage(image, 0, 0);
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code) {
+                // Send result back to Android
+                if (window.android && window.android.postMessage) {
+                    window.android.postMessage(JSON.stringify({
+                        status: 'success',
+                        data: code.data
+                    }));
+                }
+            } else {
+                if (window.android && window.android.postMessage) {
+                    window.android.postMessage(JSON.stringify({
+                        status: 'error',
+                        message: 'No QR code found'
+                    }));
+                }
+            }
+        };
+        image.src = base64Data;
+    }
+
+    // Bridge for Android to call
+    window.decodeQr = decodeQr;
+</script>
+</body>
+</html>
