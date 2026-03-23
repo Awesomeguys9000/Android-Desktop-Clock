@@ -22,7 +22,8 @@ class WebAppFragmentArgumentsTest {
             cssInjection = "body { background: red; }",
             jsInjection = "console.log('test')",
             customUserAgent = "TestUA",
-            isMediaApp = true
+            isMediaApp = true,
+            initialScale = 95
         )
 
         val fragment = WebAppFragment.newInstance(config)
@@ -37,6 +38,7 @@ class WebAppFragmentArgumentsTest {
         assertEquals("console.log('test')", args?.getString(WebAppFragment.ARG_JS_INJECTION))
         assertEquals("TestUA", args?.getString(WebAppFragment.ARG_USER_AGENT))
         assertEquals(true, args?.getBoolean(WebAppFragment.ARG_IS_MEDIA_APP))
+        assertEquals(95, args?.getInt(WebAppFragment.ARG_INITIAL_SCALE))
     }
 
     @Test
@@ -49,7 +51,8 @@ class WebAppFragmentArgumentsTest {
             cssInjection = "body { background: red; }",
             jsInjection = "console.log('test')",
             customUserAgent = "TestUA",
-            isMediaApp = true
+            isMediaApp = true,
+            initialScale = 95
         )
 
         val scenario = launchFragmentInContainer<WebAppFragment>(
