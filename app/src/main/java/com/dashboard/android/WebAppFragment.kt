@@ -30,6 +30,7 @@ class WebAppFragment : Fragment() {
         internal const val ARG_JS_INJECTION = "js_injection"
         internal const val ARG_USER_AGENT = "user_agent"
         internal const val ARG_IS_MEDIA_APP = "is_media_app"
+        internal const val ARG_INITIAL_SCALE = "initial_scale"
 
         fun newInstance(config: AppConfig): WebAppFragment {
             return WebAppFragment().apply {
@@ -42,6 +43,9 @@ class WebAppFragment : Fragment() {
                     putString(ARG_JS_INJECTION, config.jsInjection)
                     putString(ARG_USER_AGENT, config.customUserAgent)
                     putBoolean(ARG_IS_MEDIA_APP, config.isMediaApp)
+                    if (config.initialScale != null) {
+                        putInt(ARG_INITIAL_SCALE, config.initialScale)
+                    }
                 }
             }
         }
@@ -58,7 +62,8 @@ class WebAppFragment : Fragment() {
                 cssInjection = it.getString(ARG_CSS_INJECTION),
                 jsInjection = it.getString(ARG_JS_INJECTION),
                 customUserAgent = it.getString(ARG_USER_AGENT),
-                isMediaApp = it.getBoolean(ARG_IS_MEDIA_APP, false)
+                isMediaApp = it.getBoolean(ARG_IS_MEDIA_APP, false),
+                initialScale = if (it.containsKey(ARG_INITIAL_SCALE)) it.getInt(ARG_INITIAL_SCALE) else null
             )
         }
     }
@@ -111,6 +116,11 @@ class WebAppFragment : Fragment() {
             }
         }
         
+        // Apply initial scale if configured
+        appConfig.initialScale?.let { scale ->
+            webView.setInitialScale(scale)
+        }
+
         // Javascript Interface
         // Use WebViewCompat for secure messaging if supported
         if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_LISTENER)) {

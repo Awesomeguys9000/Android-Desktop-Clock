@@ -11,7 +11,8 @@ data class AppConfig(
     val cssInjection: String? = null,
     val jsInjection: String? = null,
     val customUserAgent: String? = null,
-    val isMediaApp: Boolean = false
+    val isMediaApp: Boolean = false,
+    val initialScale: Int? = null
 ) {
     companion object {
         // Default apps list
@@ -22,7 +23,8 @@ data class AppConfig(
                 url = "https://music.apple.com",
                 iconResId = R.drawable.ic_music,
                 customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                isMediaApp = true
+                isMediaApp = true,
+                initialScale = 95
             ),
             AppConfig(
                 id = "apple_podcasts",
