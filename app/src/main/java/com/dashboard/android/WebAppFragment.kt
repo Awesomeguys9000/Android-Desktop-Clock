@@ -116,11 +116,6 @@ class WebAppFragment : Fragment() {
             }
         }
         
-        // Apply initial scale if configured
-        appConfig.initialScale?.let { scale ->
-            webView.setInitialScale(scale)
-        }
-
         // Javascript Interface
         // Use WebViewCompat for secure messaging if supported
         if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_LISTENER)) {
@@ -194,6 +189,11 @@ class WebAppFragment : Fragment() {
                 
                 appConfig.jsInjection?.let { js ->
                     view?.evaluateJavascript(js, null)
+                }
+
+                // Force scale using CSS zoom if specified
+                appConfig.initialScale?.let { scale ->
+                    view?.evaluateJavascript("document.body.style.zoom = '$scale%';", null)
                 }
             }
             
