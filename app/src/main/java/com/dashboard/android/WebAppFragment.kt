@@ -191,9 +191,21 @@ class WebAppFragment : Fragment() {
                     view?.evaluateJavascript(js, null)
                 }
 
-                // Force scale using CSS zoom if specified
+                // Force scale using viewport meta tag if specified
                 appConfig.initialScale?.let { scale ->
-                    view?.evaluateJavascript("document.body.style.zoom = '$scale%';", null)
+                    val scaleFactor = scale / 100.0f
+                    val viewportJs = """
+                        (function() {
+                            var meta = document.querySelector('meta[name="viewport"]');
+                            if (!meta) {
+                                meta = document.createElement('meta');
+                                meta.name = 'viewport';
+                                document.head.appendChild(meta);
+                            }
+                            meta.content = 'width=device-width, initial-scale=$scaleFactor, maximum-scale=$scaleFactor, user-scalable=no';
+                        })();
+                    """
+                    view?.evaluateJavascript(viewportJs, null)
                 }
             }
             
