@@ -7,8 +7,10 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.content.DialogInterface
 import android.os.Bundle
 import android.service.notification.StatusBarNotification
+import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -65,6 +67,42 @@ class NotificationReplyDialog : DialogFragment(), NotificationService.Notificati
         binding.btnSend.setOnClickListener { sendReply() }
 
         NotificationService.instance?.addListener(this)
+
+        setupKeyboardHandling()
+    }
+
+    private fun setupKeyboardHandling() {
+        dialog?.setOnKeyListener(DialogInterface.OnKeyListener { _, _, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && event.deviceId > 0 && event.isPrintingKey) {
+                if (!binding.inputReply.hasFocus()) {
+                    binding.inputReply.requestFocus()
+                    val charCode = event.getUnicodeChar(event.metaState)
+                    if (charCode != 0) {
+                        binding.inputReply.append(charCode.toChar().toString())
+                        binding.inputReply.setSelection(binding.inputReply.text.length)
+                        return@OnKeyListener true
+                    }
+                }
+            }
+            false
+        })
+
+        binding.inputReply.setOnKeyListener { _, keyCode, event ->
+            if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
+                if (event.deviceId > 0) { // Physical keyboard
+                    if (event.isCtrlPressed) {
+                        val start = binding.inputReply.selectionStart
+                        val end = binding.inputReply.selectionEnd
+                        binding.inputReply.text?.replace(Math.min(start, end), Math.max(start, end), "\n", 0, 1)
+                        return@setOnKeyListener true
+                    } else {
+                        sendReply()
+                        return@setOnKeyListener true
+                    }
+                }
+            }
+            false
+        }
     }
 
     private fun setupRecyclerView() {
