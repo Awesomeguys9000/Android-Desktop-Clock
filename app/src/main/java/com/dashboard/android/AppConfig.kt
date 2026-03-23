@@ -78,6 +78,12 @@ data class AppConfig(
                 url = "https://google.com.au",
                 iconResId = R.drawable.ic_google,
                 customUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            ),
+            AppConfig(
+                id = "otp_authenticator",
+                name = "Authenticator",
+                url = "internal://otp",
+                iconResId = R.drawable.ic_lock
             )
         )
 
