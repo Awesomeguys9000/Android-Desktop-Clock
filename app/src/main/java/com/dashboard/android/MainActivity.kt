@@ -5,8 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
-import android.media.AudioManager
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.os.Build
@@ -51,7 +51,13 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Permission granted
+            // Permission granted, re-show notification for the current state if possible
+            lastActiveMediaAppId?.let { id ->
+                val appConfig = AppConfig.defaultApps.find { it.id == id }
+                if (appConfig != null) {
+                    showMediaNotification(appConfig.name, "Web App", true)
+                }
+            }
         }
     }
 
@@ -84,7 +90,6 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         requestAudioFocus()
 
         registerReceiver(noisyAudioReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
-
         onBackPressedDispatcher.addCallback(this, backPressedCallback)
     }
     
@@ -376,7 +381,6 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         hideSystemUI()
         updateActiveMediaController()
     }
-
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
