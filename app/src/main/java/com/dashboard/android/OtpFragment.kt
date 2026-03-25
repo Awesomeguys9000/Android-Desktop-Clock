@@ -354,8 +354,9 @@ class OtpFragment : Fragment() {
                 true
             }
 
-            holder.binding.dragHandle.setOnTouchListener { _, event ->
+            holder.binding.dragHandle.setOnTouchListener { view, event ->
                 if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                    view.parent?.requestDisallowInterceptTouchEvent(true)
                     if (singleFingerScroll) {
                         onStartDrag(holder)
                     }
