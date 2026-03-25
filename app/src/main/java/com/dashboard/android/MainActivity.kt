@@ -3,6 +3,9 @@ package com.dashboard.android
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.media.AudioManager
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.os.Bundle
@@ -30,6 +33,16 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     
     // WebView cache to keep apps running
     private val webViewCache = mutableMapOf<String, Fragment>()
+
+    private val noisyAudioReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                lastActiveMediaAppId?.let { id ->
+                    (webViewCache[id] as? WebAppFragment)?.pause()
+                }
+            }
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +61,8 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         checkNotificationAccess()
         setupMediaSession()
         requestAudioFocus()
+
+        registerReceiver(noisyAudioReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
     }
     
     private fun hideSystemUI() {
@@ -114,7 +129,15 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                         .build()
                 )
                 .setOnAudioFocusChangeListener { focusChange ->
-                    // Optional: Handle focus loss (e.g. pause webview)
+                    when (focusChange) {
+                        android.media.AudioManager.AUDIOFOCUS_LOSS,
+                        android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                            lastActiveMediaAppId?.let { id -> (webViewCache[id] as? WebAppFragment)?.pause() }
+                        }
+                        android.media.AudioManager.AUDIOFOCUS_GAIN -> {
+                            lastActiveMediaAppId?.let { id -> (webViewCache[id] as? WebAppFragment)?.play() }
+                        }
+                    }
                 }
                 .build()
             audioManager?.requestAudioFocus(focusRequest)
@@ -326,6 +349,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         updateActiveMediaController()
     }
 
+
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
         hideSystemUI()
@@ -335,6 +359,11 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         super.onDestroy()
         mediaSessionManager?.removeOnActiveSessionsChangedListener(this)
         mediaSession?.release()
+        try {
+            unregisterReceiver(noisyAudioReceiver)
+        } catch (e: IllegalArgumentException) {
+            // Receiver not registered
+        }
     }
     
     // ViewPager adapter for Notifications, Clock, Launcher
