@@ -6,14 +6,19 @@ import android.content.Intent
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.media.AudioManager
+import android.content.pm.PackageManager
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -33,6 +38,22 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     
     // WebView cache to keep apps running
     private val webViewCache = mutableMapOf<String, Fragment>()
+
+    private val backPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            if (binding.webAppContainer.visibility == View.VISIBLE) {
+                returnToClock()
+            }
+        }
+    }
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted
+        }
+    }
 
     private val noisyAudioReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -63,6 +84,8 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         requestAudioFocus()
 
         registerReceiver(noisyAudioReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+
+        onBackPressedDispatcher.addCallback(this, backPressedCallback)
     }
     
     private fun hideSystemUI() {
@@ -270,6 +293,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         
         binding.webAppContainer.visibility = View.VISIBLE
         binding.viewPager.visibility = View.GONE
+        backPressedCallback.isEnabled = true
     }
     
     fun restartWebApp(appConfig: AppConfig) {
@@ -300,15 +324,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         binding.webAppContainer.visibility = View.GONE
         binding.viewPager.visibility = View.VISIBLE
         viewPager.setCurrentItem(1, true) // Go to clock
-    }
-    
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (binding.webAppContainer.visibility == View.VISIBLE) {
-            returnToClock()
-        } else {
-            super.onBackPressed()
-        }
+        backPressedCallback.isEnabled = false
     }
     
     private fun showMediaNotification(title: String, artist: String, isPlaying: Boolean) {
@@ -340,7 +356,19 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
             .addAction(if (isPlaying) pauseAction else playAction)
             .build()
             
-        notificationManager.notify(101, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationManager.notify(101, notification)
+            } else {
+                requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            notificationManager.notify(101, notification)
+        }
     }
 
     override fun onResume() {
