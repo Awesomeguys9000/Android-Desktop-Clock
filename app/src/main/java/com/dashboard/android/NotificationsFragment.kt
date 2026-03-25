@@ -40,6 +40,19 @@ class NotificationsFragment : Fragment(), NotificationService.NotificationUpdate
         binding.notificationsList.layoutManager = GridLayoutManager(context, 3)
         binding.notificationsList.adapter = adapter
         
+        // Prevent ViewPager2 from intercepting horizontal swipes
+        binding.notificationsList.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
+            override fun onInterceptTouchEvent(rv: RecyclerView, e: android.view.MotionEvent): Boolean {
+                if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                    rv.parent?.requestDisallowInterceptTouchEvent(true)
+                }
+                return false
+            }
+
+            override fun onTouchEvent(rv: RecyclerView, e: android.view.MotionEvent) {}
+            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
+        })
+
         // Swipe to dismiss
         val swipeHandler = object : ItemTouchHelper.SimpleCallback(
             0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
