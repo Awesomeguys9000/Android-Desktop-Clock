@@ -9,11 +9,19 @@ class NotificationService : NotificationListenerService() {
     companion object {
         var instance: NotificationService? = null
             private set
+        var lastViewedTime: Long
+            get() = instance?.getSharedPreferences("dashboard_prefs", android.content.Context.MODE_PRIVATE)
+                ?.getLong("last_viewed_time", 0L) ?: 0L
+            set(value) {
+                instance?.getSharedPreferences("dashboard_prefs", android.content.Context.MODE_PRIVATE)
+                    ?.edit()?.putLong("last_viewed_time", value)?.apply()
+            }
     }
 
     interface NotificationUpdateListener {
         fun onNotificationPosted(sbn: StatusBarNotification)
         fun onNotificationRemoved(sbn: StatusBarNotification)
+        fun onNotificationsUpdated() {}
     }
 
     private val listeners = CopyOnWriteArrayList<NotificationUpdateListener>()
@@ -50,6 +58,11 @@ class NotificationService : NotificationListenerService() {
         sbn?.let { notification ->
             listeners.forEach { it.onNotificationRemoved(notification) }
         }
+    }
+
+    fun markAllAsViewed() {
+        lastViewedTime = System.currentTimeMillis()
+        listeners.forEach { it.onNotificationsUpdated() }
     }
 
     fun getAllNotifications(): List<StatusBarNotification> {

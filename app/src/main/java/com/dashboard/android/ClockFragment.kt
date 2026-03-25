@@ -53,6 +53,10 @@ class ClockFragment : Fragment() {
         override fun onNotificationRemoved(sbn: android.service.notification.StatusBarNotification) {
             updateUnreadIndicator()
         }
+
+        override fun onNotificationsUpdated() {
+            updateUnreadIndicator()
+        }
     }
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -118,7 +122,8 @@ class ClockFragment : Fragment() {
             if (_binding != null) {
                 val allNotifications = NotificationService.instance?.getAllNotifications() ?: emptyList()
                 val hasUnread = allNotifications.any {
-                    AppConfig.MESSAGING_APP_PACKAGES.contains(it.packageName)
+                    AppConfig.MESSAGING_APP_PACKAGES.contains(it.packageName) &&
+                    it.postTime > NotificationService.lastViewedTime
                 }
                 binding.unreadIndicator.visibility = if (hasUnread) View.VISIBLE else View.GONE
             }
