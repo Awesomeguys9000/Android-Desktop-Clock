@@ -2,124 +2,144 @@ package com.dashboard.android
 
 import android.content.Context
 import android.net.Uri
-import android.webkit.CookieManager
-import org.json.JSONObject
-import java.io.OutputStreamWriter
-import java.io.InputStreamReader
-import java.io.BufferedReader
 import android.util.Log
 import android.widget.Toast
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 object DataManagementUtils {
 
     private const val TAG = "DataManagementUtils"
 
     fun exportData(context: Context, uri: Uri) {
-        try {
-            val json = JSONObject()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val dataDir = File(context.applicationInfo.dataDir)
 
-            // 1. Export SharedPreferences
-            val prefsObj = JSONObject()
-            val prefFiles = listOf("clock_prefs", "otp_prefs")
-            for (prefFile in prefFiles) {
-                val prefs = context.getSharedPreferences(prefFile, Context.MODE_PRIVATE)
-                val fileObj = JSONObject()
-                for ((key, value) in prefs.all) {
-                    val typedValue = JSONObject()
-                    typedValue.put("value", value)
-                    typedValue.put("type", value?.javaClass?.simpleName ?: "Unknown")
-                    fileObj.put(key, typedValue)
+                val outputStream = context.contentResolver.openOutputStream(uri)
+                    ?: throw java.io.IOException("Failed to open output stream")
+
+                outputStream.use { stream ->
+                    ZipOutputStream(stream).use { zos ->
+                        zipDirectory(dataDir, dataDir, zos)
+                    }
                 }
-                prefsObj.put(prefFile, fileObj)
-            }
-            json.put("shared_prefs", prefsObj)
-
-            // 2. Export WebView Cookies
-            val cookieManager = CookieManager.getInstance()
-            val url = "https://appassets.androidplatform.net" // Default app url
-            val cookies = cookieManager.getCookie(url)
-            json.put("webview_cookies", cookies ?: "")
-
-            // Write to file
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                OutputStreamWriter(outputStream).use { writer ->
-                    writer.write(json.toString(2))
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Data exported successfully", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to export data", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed to export data: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
-            Toast.makeText(context, "Data exported successfully", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to export data", e)
-            Toast.makeText(context, "Failed to export data: \${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun zipDirectory(baseDir: File, currentDir: File, zos: ZipOutputStream) {
+        val files = currentDir.listFiles() ?: return
+        for (file in files) {
+            // Skip cache directories to save space and avoid lock issues
+            if (file.name == "cache" || file.name == "code_cache" || file.name == "lib" || file.name == "no_backup") {
+                continue
+            }
+
+            // Relativize path
+            val entryName = file.absolutePath.substring(baseDir.absolutePath.length + 1)
+
+            if (file.isDirectory) {
+                // Add directory entry (important for empty directories)
+                val zipEntry = ZipEntry("$entryName/")
+                zos.putNextEntry(zipEntry)
+                zos.closeEntry()
+                // Recurse into directory
+                zipDirectory(baseDir, file, zos)
+            } else {
+                try {
+                    val zipEntry = ZipEntry(entryName)
+                    zos.putNextEntry(zipEntry)
+
+                    FileInputStream(file).use { fis ->
+                        fis.copyTo(zos)
+                    }
+                    zos.closeEntry()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to zip file: ${file.name}", e)
+                    // Continue zipping other files
+                }
+            }
         }
     }
 
     fun importData(context: Context, uri: Uri) {
-        try {
-            // Read file
-            val stringBuilder = java.lang.StringBuilder()
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream)).use { reader ->
-                    var line: String?
-                    while (reader.readLine().also { line = it } != null) {
-                        stringBuilder.append(line)
-                    }
-                }
-            }
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val dataDir = File(context.applicationInfo.dataDir)
 
-            val json = JSONObject(stringBuilder.toString())
+                // Note: We don't delete the entire data dir first, as that would delete our own running code/lib
+                // We overwrite existing files. This means deleted files won't be pruned during import,
+                // but it's much safer than wiping the whole directory.
 
-            // 1. Import SharedPreferences
-            if (json.has("shared_prefs")) {
-                val prefsObj = json.getJSONObject("shared_prefs")
-                for (prefFile in prefsObj.keys()) {
-                    val prefs = context.getSharedPreferences(prefFile, Context.MODE_PRIVATE)
-                    val editor = prefs.edit()
+                val inputStream = context.contentResolver.openInputStream(uri)
+                    ?: throw java.io.IOException("Failed to open input stream")
 
-                    val fileObj = prefsObj.getJSONObject(prefFile)
-                    for (key in fileObj.keys()) {
-                        val typedValue = fileObj.getJSONObject(key)
-                        val type = typedValue.getString("type")
+                inputStream.use { stream ->
+                    ZipInputStream(stream).use { zis ->
+                        var entry: ZipEntry? = zis.nextEntry
+                        while (entry != null) {
+                            val outputFile = File(dataDir, entry.name)
 
-                        // When reading from JSON, numbers are parsed as Double or Int
-                        when (type) {
-                            "Boolean" -> editor.putBoolean(key, typedValue.getBoolean("value"))
-                            "Integer" -> editor.putInt(key, typedValue.getInt("value"))
-                            "Float" -> editor.putFloat(key, typedValue.getDouble("value").toFloat())
-                            "Long" -> editor.putLong(key, typedValue.getLong("value"))
-                            "String" -> editor.putString(key, typedValue.getString("value"))
+                            // Security check: ensure path traversal is prevented
+                            if (!outputFile.canonicalPath.startsWith(dataDir.canonicalPath)) {
+                                throw SecurityException("Zip entry is outside of target directory")
+                            }
+
+                            if (entry.isDirectory) {
+                                outputFile.mkdirs()
+                            } else {
+                                // Ensure parent directories exist
+                                outputFile.parentFile?.mkdirs()
+
+                                try {
+                                    FileOutputStream(outputFile).use { fos ->
+                                        zis.copyTo(fos)
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to write extracted file: ${outputFile.name}", e)
+                                }
+                            }
+                            zis.closeEntry()
+                            entry = zis.nextEntry
                         }
                     }
-                    editor.apply()
+                }
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Data imported successfully. App will restart.", Toast.LENGTH_LONG).show()
+
+                    // Restart the app to apply preferences and data changes
+                    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                    if (intent != null) {
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        context.startActivity(intent)
+                        Runtime.getRuntime().exit(0)
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to import data", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed to import data: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
-
-            // 2. Import WebView Cookies
-            if (json.has("webview_cookies")) {
-                 val cookiesString = json.getString("webview_cookies")
-                 if (cookiesString.isNotEmpty()) {
-                     val cookieManager = CookieManager.getInstance()
-                     val url = "https://appassets.androidplatform.net"
-
-                     // Need to set cookies one by one
-                     val cookies = cookiesString.split(";")
-                     for (cookie in cookies) {
-                         cookieManager.setCookie(url, cookie.trim())
-                     }
-                     cookieManager.flush()
-                 }
-            }
-
-            Toast.makeText(context, "Data imported successfully. App will restart.", Toast.LENGTH_SHORT).show()
-
-            // Restart the app to apply preferences
-            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-            Runtime.getRuntime().exit(0)
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to import data", e)
-            Toast.makeText(context, "Failed to import data: \${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

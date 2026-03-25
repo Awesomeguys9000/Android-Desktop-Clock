@@ -56,7 +56,7 @@ class ClockFragment : Fragment() {
         }
     }
 
-    private val exportDataLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+    private val exportDataLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         uri?.let {
             DataManagementUtils.exportData(requireContext(), it)
         }
@@ -305,11 +305,11 @@ class ClockFragment : Fragment() {
 
         // Data Management
         binding.btnExportData.setOnClickListener {
-            exportDataLauncher.launch("dashboard_data.json")
+            exportDataLauncher.launch("dashboard_data.zip")
         }
 
         binding.btnImportData.setOnClickListener {
-            importDataLauncher.launch(arrayOf("application/json", "*/*"))
+            importDataLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "multipart/x-zip", "application/x-compressed", "*/*"))
         }
         
         // Close settings button
