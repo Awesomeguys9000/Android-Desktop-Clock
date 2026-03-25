@@ -26,6 +26,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.telephony.TelephonyManager
 import android.content.pm.PackageManager
+import androidx.activity.result.contract.ActivityResultContracts
 
 class ClockFragment : Fragment() {
 
@@ -52,6 +53,18 @@ class ClockFragment : Fragment() {
 
         override fun onNotificationRemoved(sbn: android.service.notification.StatusBarNotification) {
             updateUnreadIndicator()
+        }
+    }
+
+    private val exportDataLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let {
+            DataManagementUtils.exportData(requireContext(), it)
+        }
+    }
+
+    private val importDataLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let {
+            DataManagementUtils.importData(requireContext(), it)
         }
     }
 
@@ -289,6 +302,15 @@ class ClockFragment : Fragment() {
         
         // Background style options
         setupBackgroundOptions()
+
+        // Data Management
+        binding.btnExportData.setOnClickListener {
+            exportDataLauncher.launch("dashboard_data.zip")
+        }
+
+        binding.btnImportData.setOnClickListener {
+            importDataLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream", "multipart/x-zip", "application/x-compressed", "*/*"))
+        }
         
         // Close settings button
         binding.closeSettings.setOnClickListener {
