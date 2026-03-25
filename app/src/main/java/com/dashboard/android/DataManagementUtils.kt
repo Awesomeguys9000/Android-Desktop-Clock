@@ -25,7 +25,10 @@ object DataManagementUtils {
                 val prefs = context.getSharedPreferences(prefFile, Context.MODE_PRIVATE)
                 val fileObj = JSONObject()
                 for ((key, value) in prefs.all) {
-                    fileObj.put(key, value)
+                    val typedValue = JSONObject()
+                    typedValue.put("value", value)
+                    typedValue.put("type", value?.javaClass?.simpleName ?: "Unknown")
+                    fileObj.put(key, typedValue)
                 }
                 prefsObj.put(prefFile, fileObj)
             }
@@ -74,22 +77,16 @@ object DataManagementUtils {
 
                     val fileObj = prefsObj.getJSONObject(prefFile)
                     for (key in fileObj.keys()) {
-                        when (val value = fileObj.get(key)) {
-                            is Boolean -> editor.putBoolean(key, value)
-                            is Int -> editor.putInt(key, value)
-                            is Float -> editor.putFloat(key, value)
-                            is Long -> editor.putLong(key, value)
-                            is String -> editor.putString(key, value)
-                            // Handle numbers parsed as Double
-                            is Double -> {
-                                // Try to determine if it should be an Int, Long, or Float based on typical preferences
-                                // This is a limitation of JSON mapping
-                                if (value % 1 == 0.0) {
-                                   editor.putLong(key, value.toLong())
-                                } else {
-                                   editor.putFloat(key, value.toFloat())
-                                }
-                            }
+                        val typedValue = fileObj.getJSONObject(key)
+                        val type = typedValue.getString("type")
+
+                        // When reading from JSON, numbers are parsed as Double or Int
+                        when (type) {
+                            "Boolean" -> editor.putBoolean(key, typedValue.getBoolean("value"))
+                            "Integer" -> editor.putInt(key, typedValue.getInt("value"))
+                            "Float" -> editor.putFloat(key, typedValue.getDouble("value").toFloat())
+                            "Long" -> editor.putLong(key, typedValue.getLong("value"))
+                            "String" -> editor.putString(key, typedValue.getString("value"))
                         }
                     }
                     editor.apply()
