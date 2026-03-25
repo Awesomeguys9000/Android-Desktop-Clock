@@ -20,6 +20,9 @@ object DataManagementUtils {
     private const val TAG = "DataManagementUtils"
 
     fun exportData(context: Context, uri: Uri) {
+        // Flush cookies to disk before zipping
+        android.webkit.CookieManager.getInstance().flush()
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val dataDir = File(context.applicationInfo.dataDir)
@@ -87,6 +90,13 @@ object DataManagementUtils {
                 // Note: We don't delete the entire data dir first, as that would delete our own running code/lib
                 // We overwrite existing files. This means deleted files won't be pruned during import,
                 // but it's much safer than wiping the whole directory.
+
+                // CRITICAL: We MUST delete the old WebView directory before extracting the backup.
+                // SQLite databases in app_webview will corrupt if we blindly overwrite them or merge old/new files.
+                val webViewDir = File(dataDir, "app_webview")
+                if (webViewDir.exists()) {
+                    webViewDir.deleteRecursively()
+                }
 
                 val inputStream = context.contentResolver.openInputStream(uri)
                     ?: throw java.io.IOException("Failed to open input stream")
