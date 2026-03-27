@@ -222,19 +222,14 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
             return
         }
 
-        // Send metadata broadcast to update ForwardingPlayer
+        // Send metadata and state broadcast to update WebAppPlayer
         val intent = Intent("ACTION_UPDATE_METADATA").apply {
             setPackage(packageName)
             putExtra("TITLE", title)
             putExtra("ARTIST", artist)
+            putExtra("IS_PLAYING", isPlaying)
         }
         sendBroadcast(intent)
-
-        if (isPlaying) {
-            controller.play()
-        } else {
-            controller.pause()
-        }
     }
     
     private var pendingMediaAction: (() -> Unit)? = null
