@@ -21,7 +21,11 @@ class WebAppPlayer(private val context: android.content.Context) : SimpleBasePla
                     .addAll(
                         Player.COMMAND_PLAY_PAUSE,
                         Player.COMMAND_SET_MEDIA_ITEM,
-                        Player.COMMAND_STOP
+                        Player.COMMAND_STOP,
+                        Player.COMMAND_SEEK_TO_NEXT,
+                        Player.COMMAND_SEEK_TO_PREVIOUS,
+                        Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                        Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
                     )
                     .build()
             )
@@ -45,6 +49,24 @@ class WebAppPlayer(private val context: android.content.Context) : SimpleBasePla
         isCurrentlyPlaying = false
         invalidateState()
         context.sendBroadcast(Intent("ACTION_WEB_APP_PAUSE").setPackage(context.packageName))
+        return Futures.immediateVoidFuture()
+    }
+
+    override fun handleSeek(
+        mediaItemIndex: Int,
+        positionMs: Long,
+        seekCommand: Int
+    ): ListenableFuture<*> {
+        when (seekCommand) {
+            Player.COMMAND_SEEK_TO_NEXT,
+            Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM -> {
+                context.sendBroadcast(Intent("ACTION_WEB_APP_SKIP_NEXT").setPackage(context.packageName))
+            }
+            Player.COMMAND_SEEK_TO_PREVIOUS,
+            Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> {
+                context.sendBroadcast(Intent("ACTION_WEB_APP_SKIP_PREVIOUS").setPackage(context.packageName))
+            }
+        }
         return Futures.immediateVoidFuture()
     }
 

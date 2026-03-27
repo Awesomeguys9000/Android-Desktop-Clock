@@ -83,6 +83,16 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
                         (webViewCache[id] as? WebAppFragment)?.pause()
                     }
                 }
+                "ACTION_WEB_APP_SKIP_NEXT" -> {
+                    lastActiveMediaAppId?.let { id ->
+                        (webViewCache[id] as? WebAppFragment)?.skipNext()
+                    }
+                }
+                "ACTION_WEB_APP_SKIP_PREVIOUS" -> {
+                    lastActiveMediaAppId?.let { id ->
+                        (webViewCache[id] as? WebAppFragment)?.skipPrevious()
+                    }
+                }
             }
         }
     }
@@ -114,6 +124,8 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         val filter = IntentFilter().apply {
             addAction("ACTION_WEB_APP_PLAY")
             addAction("ACTION_WEB_APP_PAUSE")
+            addAction("ACTION_WEB_APP_SKIP_NEXT")
+            addAction("ACTION_WEB_APP_SKIP_PREVIOUS")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(webAppCommandReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
