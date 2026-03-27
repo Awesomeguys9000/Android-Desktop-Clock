@@ -3,14 +3,24 @@ package com.dashboard.android
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.media.session.MediaController
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.media.session.MediaSessionManager
+import android.os.Build
 import android.os.Bundle
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -24,12 +34,68 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var viewPager: ViewPager2
+
+    // Media3 components
+    private var mediaControllerFuture: ListenableFuture<MediaController>? = null
+    private var mediaController: MediaController? = null
+
+    // Legacy system media tracking
     private var mediaSessionManager: MediaSessionManager? = null
-    private var activeMediaController: MediaController? = null
-    private var mediaSession: android.media.session.MediaSession? = null
+    private var activeSystemMediaController: android.media.session.MediaController? = null
     
     // WebView cache to keep apps running
     private val webViewCache = mutableMapOf<String, Fragment>()
+
+    private val backPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            if (binding.webAppContainer.visibility == View.VISIBLE) {
+                returnToClock()
+            }
+        }
+    }
+
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission granted, re-show notification for the current state if possible
+            lastActiveMediaAppId?.let { id ->
+                val appConfig = AppConfig.defaultApps.find { it.id == id }
+                if (appConfig != null) {
+                    updateSessionMetadata(appConfig.name, "Web App", true)
+                }
+            }
+        }
+    }
+
+    // Broadcast receiver to listen for Media3 player actions
+    private val webAppCommandReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "ACTION_WEB_APP_PLAY" -> {
+                    lastActiveMediaAppId?.let { id ->
+                        (webViewCache[id] as? WebAppFragment)?.play()
+                    }
+                }
+                "ACTION_WEB_APP_PAUSE" -> {
+                    lastActiveMediaAppId?.let { id ->
+                        (webViewCache[id] as? WebAppFragment)?.pause()
+                    }
+                }
+                "ACTION_WEB_APP_SKIP_NEXT" -> {
+                    lastActiveMediaAppId?.let { id ->
+                        (webViewCache[id] as? WebAppFragment)?.skipNext()
+                    }
+                }
+                "ACTION_WEB_APP_SKIP_PREVIOUS" -> {
+                    lastActiveMediaAppId?.let { id ->
+                        (webViewCache[id] as? WebAppFragment)?.skipPrevious()
+                    }
+                }
+            }
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -46,8 +112,79 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         hideSystemUI()
         setupViewPager()
         checkNotificationAccess()
-        setupMediaSession()
-        requestAudioFocus()
+        setupSystemMediaTracking()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        val filter = IntentFilter().apply {
+            addAction("ACTION_WEB_APP_PLAY")
+            addAction("ACTION_WEB_APP_PAUSE")
+            addAction("ACTION_WEB_APP_SKIP_NEXT")
+            addAction("ACTION_WEB_APP_SKIP_PREVIOUS")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(webAppCommandReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(webAppCommandReceiver, filter)
+        }
+
+        onBackPressedDispatcher.addCallback(this, backPressedCallback)
+    }
+
+    private fun setupSystemMediaTracking() {
+        try {
+            mediaSessionManager = getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
+            val componentName = ComponentName(this, NotificationService::class.java)
+            mediaSessionManager?.addOnActiveSessionsChangedListener(this, componentName)
+            updateActiveSystemMediaController()
+        } catch (e: SecurityException) {
+            // Notification access not granted yet
+        }
+    }
+
+    private fun updateActiveSystemMediaController() {
+        try {
+            val componentName = ComponentName(this, NotificationService::class.java)
+            val controllers = mediaSessionManager?.getActiveSessions(componentName)
+            activeSystemMediaController = controllers?.firstOrNull()
+        } catch (e: SecurityException) {
+            // Notification access not granted
+        }
+    }
+
+    override fun onActiveSessionsChanged(controllers: MutableList<android.media.session.MediaController>?) {
+        val visibleController = controllers?.firstOrNull()
+        activeSystemMediaController = visibleController
+
+        // Notify ClockFragment about media change
+        val clockFragment = supportFragmentManager.findFragmentByTag("f1") as? ClockFragment
+        clockFragment?.updateMediaInfo(activeSystemMediaController)
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        val sessionToken = SessionToken(this, ComponentName(this, WebAppMediaSessionService::class.java))
+        mediaControllerFuture = MediaController.Builder(this, sessionToken).buildAsync()
+        mediaControllerFuture?.addListener(
+            {
+                mediaController = mediaControllerFuture?.get()
+                pendingMediaAction?.invoke()
+                pendingMediaAction = null
+            },
+            MoreExecutors.directExecutor()
+        )
+    }
+
+    override fun onStop() {
+        super.onStop()
+        mediaControllerFuture?.let { MediaController.releaseFuture(it) }
+        mediaController = null
     }
     
     private fun hideSystemUI() {
@@ -90,107 +227,29 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     }
     
     fun updateSessionMetadata(title: String, artist: String, isPlaying: Boolean) {
-        mediaSession?.setMetadata(android.media.MediaMetadata.Builder()
-            .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, title)
-            .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, artist)
-            .build())
-            
-        mediaSession?.setPlaybackState(android.media.session.PlaybackState.Builder()
-            .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
-            .setState(if (isPlaying) android.media.session.PlaybackState.STATE_PLAYING else android.media.session.PlaybackState.STATE_PAUSED, 0, 1f)
-            .build())
-            
-        showMediaNotification(title, artist, isPlaying)
-    }
-
-    private fun requestAudioFocus() {
-        try {
-            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
-            val focusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(
-                    android.media.AudioAttributes.Builder()
-                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build()
-                )
-                .setOnAudioFocusChangeListener { focusChange ->
-                    // Optional: Handle focus loss (e.g. pause webview)
-                }
-                .build()
-            audioManager?.requestAudioFocus(focusRequest)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        val controller = mediaController
+        if (controller == null) {
+            // Queue it to run when connected
+            pendingMediaAction = { updateSessionMetadata(title, artist, isPlaying) }
+            return
         }
-    }
 
-    private fun setupMediaSession() {
-        try {
-            // Create our own session for WebView control
-            mediaSession = android.media.session.MediaSession(this, "DashboardWebSession").apply {
-                setCallback(object : android.media.session.MediaSession.Callback() {
-                    override fun onPlay() {
-                        requestAudioFocus()
-                        lastActiveMediaAppId?.let { (webViewCache[it] as? WebAppFragment)?.play() }
-                    }
-                    override fun onPause() {
-                        lastActiveMediaAppId?.let { (webViewCache[it] as? WebAppFragment)?.pause() }
-                    }
-                    override fun onSkipToNext() {
-                        lastActiveMediaAppId?.let { (webViewCache[it] as? WebAppFragment)?.skipNext() }
-                    }
-                    override fun onSkipToPrevious() {
-                        lastActiveMediaAppId?.let { (webViewCache[it] as? WebAppFragment)?.skipPrevious() }
-                    }
-                })
-                isActive = true
-                
-                // CRITICAL: specific flags to let system know we want hardware button events
-                setFlags(android.media.session.MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or 
-                        android.media.session.MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS)
-                
-                // Initial state
-                setPlaybackState(android.media.session.PlaybackState.Builder()
-                    .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
-                    .setState(android.media.session.PlaybackState.STATE_NONE, 0, 1f)
-                    .build())
-            }
-
-            mediaSessionManager = getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
-            val componentName = ComponentName(this, NotificationService::class.java)
-            mediaSessionManager?.addOnActiveSessionsChangedListener(this, componentName)
-            updateActiveMediaController()
-        } catch (e: SecurityException) {
-            // Notification access not granted yet
+        // Send metadata and state broadcast to update WebAppPlayer
+        val intent = Intent("ACTION_UPDATE_METADATA").apply {
+            setPackage(packageName)
+            putExtra("TITLE", title)
+            putExtra("ARTIST", artist)
+            putExtra("IS_PLAYING", isPlaying)
         }
+        sendBroadcast(intent)
     }
     
-    private fun updateActiveMediaController() {
-        try {
-            val componentName = ComponentName(this, NotificationService::class.java)
-            val controllers = mediaSessionManager?.getActiveSessions(componentName)
-            activeMediaController = controllers?.firstOrNull()
-        } catch (e: SecurityException) {
-            // Notification access not granted
-        }
-    }
-    
+    private var pendingMediaAction: (() -> Unit)? = null
+
     private var activeWebAppId: String? = null
     private var lastActiveMediaAppId: String? = null
 
-    override fun onActiveSessionsChanged(controllers: MutableList<MediaController>?) {
-        // If our session is active and user is in a web app, don't overwrite with system controllers
-        // unless they are actually playing something else (like Spotify app)
-        val visibleController = controllers?.firstOrNull()
-        
-        // If our internal session is the one being reported, ignore recursive updates or handle gracefully
-        activeMediaController = visibleController
-        
-        // Notify ClockFragment about media change
-        val clockFragment = supportFragmentManager.findFragmentByTag("f1") as? ClockFragment
-        clockFragment?.updateMediaInfo(activeMediaController)
-    }
-    
-    fun getActiveMediaController(): MediaController? = activeMediaController
+    fun getActiveMediaController(): android.media.session.MediaController? = activeSystemMediaController
     
     fun getActiveEmbeddedAppName(): String? {
         return AppConfig.defaultApps.find { it.id == lastActiveMediaAppId }?.name
@@ -202,18 +261,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         // Only update media tracking if this is actually a media app
         if (appConfig.isMediaApp) {
             lastActiveMediaAppId = appConfig.id
-            
-            // Update Session Metadata
-            mediaSession?.setMetadata(android.media.MediaMetadata.Builder()
-                .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, appConfig.name)
-                .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, "Web App")
-                .build())
-                
-            // Set state to Playing so controls appear (optimistic)
-            mediaSession?.setPlaybackState(android.media.session.PlaybackState.Builder()
-                                .setActions(android.media.session.PlaybackState.ACTION_PLAY_PAUSE or android.media.session.PlaybackState.ACTION_SKIP_TO_NEXT or android.media.session.PlaybackState.ACTION_SKIP_TO_PREVIOUS)
-                                .setState(android.media.session.PlaybackState.STATE_PLAYING, 0, 1f)
-                                .build())
+            updateSessionMetadata(appConfig.name, "Web App", true)
         }
 
         val transaction = supportFragmentManager.beginTransaction()
@@ -247,6 +295,7 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         
         binding.webAppContainer.visibility = View.VISIBLE
         binding.viewPager.visibility = View.GONE
+        backPressedCallback.isEnabled = true
     }
     
     fun restartWebApp(appConfig: AppConfig) {
@@ -277,53 +326,13 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
         binding.webAppContainer.visibility = View.GONE
         binding.viewPager.visibility = View.VISIBLE
         viewPager.setCurrentItem(1, true) // Go to clock
+        backPressedCallback.isEnabled = false
     }
     
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (binding.webAppContainer.visibility == View.VISIBLE) {
-            returnToClock()
-        } else {
-            super.onBackPressed()
-        }
-    }
-    
-    private fun showMediaNotification(title: String, artist: String, isPlaying: Boolean) {
-        val channelId = "media_channel"
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-        
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            if (notificationManager.getNotificationChannel(channelId) == null) {
-                val channel = android.app.NotificationChannel(channelId, "Media Playback", android.app.NotificationManager.IMPORTANCE_LOW)
-                notificationManager.createNotificationChannel(channel)
-            }
-        }
-        
-        val pauseAction = android.app.Notification.Action.Builder(
-            android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_pause), "Pause",
-            android.app.PendingIntent.getBroadcast(this, 1, Intent("ACTION_PAUSE"), android.app.PendingIntent.FLAG_IMMUTABLE)
-        ).build()
-        
-        val playAction = android.app.Notification.Action.Builder(
-            android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_play), "Play",
-            android.app.PendingIntent.getBroadcast(this, 2, Intent("ACTION_PLAY"), android.app.PendingIntent.FLAG_IMMUTABLE)
-        ).build()
-
-        val notification = android.app.Notification.Builder(this, channelId)
-            .setStyle(android.app.Notification.MediaStyle().setMediaSession(mediaSession?.sessionToken))
-            .setSmallIcon(R.drawable.ic_music)
-            .setContentTitle(title)
-            .setContentText(artist)
-            .addAction(if (isPlaying) pauseAction else playAction)
-            .build()
-            
-        notificationManager.notify(101, notification)
-    }
-
     override fun onResume() {
         super.onResume()
         hideSystemUI()
-        updateActiveMediaController()
+        updateActiveSystemMediaController()
     }
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
@@ -334,7 +343,9 @@ class MainActivity : AppCompatActivity(), MediaSessionManager.OnActiveSessionsCh
     override fun onDestroy() {
         super.onDestroy()
         mediaSessionManager?.removeOnActiveSessionsChangedListener(this)
-        mediaSession?.release()
+        try {
+            unregisterReceiver(webAppCommandReceiver)
+        } catch (e: Exception) {}
     }
     
     // ViewPager adapter for Notifications, Clock, Launcher
