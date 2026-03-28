@@ -74,13 +74,22 @@ class NotificationsFragment : Fragment(), NotificationService.NotificationUpdate
 
     override fun onResume() {
         super.onResume()
+        NotificationService.instance?.markAllAsViewed()
         loadNotifications()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         activity?.runOnUiThread {
+            if (isResumed) {
+                NotificationService.instance?.markAllAsViewed()
+            }
             loadNotifications()
         }
+    }
+
+    override fun onNotificationsUpdated() {
+        // No-op or we could call loadNotifications() but UI doesn't necessarily need an update
+        // when only the viewed status changes.
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
